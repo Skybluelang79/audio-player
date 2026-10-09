@@ -1,0 +1,77 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#05060a">
+  <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2300e5ff'/><path d='M9 20V12h3v5h3v-8h3v11h3v-6h2v6z' fill='%2305060a'/></svg>">
+  {% block head %}{% endblock %}
+</head>
+<body class="site{% if player_active %} has-player{% endif %}">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="brand" href="{% url 'music:home' %}">
+        <span class="brand__mark" aria-hidden="true"></span>
+        <span class="brand__name">{{ SITE_NAME }}</span>
+      </a>
+
+      <form class="search" action="{% url 'music:search' %}" method="get" role="search">
+        <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 105.3 14l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/></svg>
+        <input type="search" name="q" value="{{ query|default:'' }}" placeholder="Search tracks, artists, albums, playlists" aria-label="Search" autocomplete="off">
+      </form>
+
+      <nav class="topnav" aria-label="Primary">
+        <a class="topnav__link {% if nav_active == 'home' %}is-active{% endif %}" href="{% url 'music:home' %}">Home</a>
+        <a class="topnav__link {% if nav_active == 'browse' %}is-active{% endif %}" href="{% url 'playlists:index' %}">Playlists</a>
+        <a class="topnav__link {% if nav_active == 'genres' %}is-active{% endif %}" href="{% url 'music:home' %}#genres">Genres</a>
+        {% if user.is_authenticated %}
+          <a class="topnav__link {% if nav_active == 'feed' %}is-active{% endif %}" href="{% url 'accounts:feed' %}">Feed</a>
+          <a class="topnav__link {% if nav_active == 'library' %}is-active{% endif %}" href="{% url 'music:library' %}">Library</a>
+          <a class="topnav__link {% if nav_active == 'notifications' %}is-active{% endif %}" href="{% url 'notifications:list' %}">
+            Notices<span class="badge" data-notif-badge hidden>0</span>
+          </a>
+          {% if user.is_admin_staff %}
+            <a class="topnav__link" href="{% url 'dashboard:index' %}">Dashboard</a>
+          {% endif %}
+          <a class="avatar avatar--link" href="{% url 'accounts:profile' user.id %}" title="View your profile">{{ user.initials }}</a>
+          <form method="post" action="{% url 'logout' %}" class="topnav__form">
+            {% csrf_token %}
+            <button class="btn btn--sm btn--ghost" type="submit">Sign out</button>
+          </form>
+        {% else %}
+          <a class="btn btn--sm btn--primary" href="{% url 'login' %}">Sign in</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main class="main" id="main">
+    {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <div class="footer__inner">
+      <span>{{ SITE_NAME }} · {{ SITE_TAGLINE }}</span>
+      <nav class="footer__links">
+        <a href="/api/docs/">API</a>
+        {% if user.is_authenticated and user.is_admin_staff %}<a href="{% url 'dashboard:index' %}">Dashboard</a>{% endif %}
+        <a href="/admin/">Admin</a>
+      </nav>
+    </div>
+  </footer>
+
+  {% include "music/includes/player.html" %}
+  <script src="{% static 'js/player.js' %}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

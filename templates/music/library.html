@@ -1,0 +1,60 @@
+{% extends "site_base.html" %}
+{% load humanize %}
+
+{% block title %}Your library · {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+{% if not user.is_authenticated %}
+  <article class="detail">
+    <header class="detail__hero detail__hero--slim">
+      <div class="detail__body">
+        <span class="chip chip--cyan">Library</span>
+        <h1 class="detail__title">Sign in to see your library</h1>
+        <p class="detail__bio">Favourites, playlists, listening history and followed artists live behind your account.</p>
+        <div class="detail__actions">
+          <a class="btn btn--primary" href="{% url 'login' %}?next={{ request.path|urlencode }}">Sign in</a>
+        </div>
+      </div>
+    </header>
+  </article>
+{% else %}
+  <article class="detail">
+    <header class="detail__hero detail__hero--slim">
+      <div class="detail__body">
+        <span class="chip chip--cyan">Library</span>
+        <h1 class="detail__title">{{ user.full_name }}</h1>
+        <p class="detail__meta mono">{{ user.email }} · joined {{ user.date_joined|date:"M Y" }}</p>
+      </div>
+    </header>
+
+    <section class="shelf">
+      <div class="shelf__head">
+        <h2 class="shelf__title">Favourites</h2>
+        <span class="shelf__more mono">{{ favorites|length }}</span>
+      </div>
+      {% include "music/includes/track_table.html" with tracks=favorites show_album=True %}
+      {% if is_paginated %}
+        <nav class="pager">
+          {% if page_obj.has_previous %}<a class="btn btn--sm btn--ghost" href="?page={{ page_obj.previous_page_number }}">← Newer</a>{% endif %}
+          {% if page_obj.has_next %}<a class="btn btn--sm btn--ghost" href="?page={{ page_obj.next_page_number }}">Older →</a>{% endif %}
+        </nav>
+      {% endif %}
+    </section>
+
+    {% if playlists %}
+      {% include "music/includes/card_grid.html" with items=playlists kind="playlist" title="Your playlists" href="/playlists/" %}
+    {% endif %}
+
+    {% if history %}
+      <section class="shelf">
+        <div class="shelf__head"><h2 class="shelf__title">Recently played</h2></div>
+        {% include "music/includes/track_table.html" with tracks=history show_album=True %}
+      </section>
+    {% endif %}
+
+    {% if following %}
+      {% include "music/includes/card_grid.html" with items=following kind="artist" title="Artists you follow" %}
+    {% endif %}
+  </article>
+{% endif %}
+{% endblock %}

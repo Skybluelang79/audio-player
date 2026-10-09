@@ -1,0 +1,236 @@
+{% extends "dashboard/base.html" %}
+{% load humanize %}
+
+{% block title %}Bulk edit · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}Bulk catalogue{% endblock %}
+{% block page_meta %}{{ matched_count|intcomma }} track(s) match the current filters{% endblock %}
+
+{% block header_actions %}
+  <a class="btn btn--sm btn--ghost" href="{% url 'dashboard:catalogue-export' %}{{ export_query }}">⬇ Export CSV</a>
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+
+  <section class="panel">
+    <form class="toolbar" method="get">
+      <input class="search-input" type="search" name="search" value="{{ filters.search }}"
+             placeholder="Search title, ISRC, artist or album…" aria-label="Search tracks">
+
+      <label class="sr-only" for="f-status">Status</label>
+      <select class="select-input" id="f-status" name="status">
+        <option value="">Any status</option>
+        {% for value, label in statuses %}
+          <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+
+      <label class="sr-only" for="f-artist">Artist</label>
+      <select class="select-input" id="f-artist" name="artist_id">
+        <option value="">Any artist</option>
+        {% for artist in artists %}
+          <option value="{{ artist.pk }}" {% if filters.artist_id == artist.pk|stringformat:"s" %}selected{% endif %}>{{ artist.name }}</option>
+        {% endfor %}
+      </select>
+
+      <label class="sr-only" for="f-album">Album</label>
+      <select class="select-input" id="f-album" name="album_id">
+        <option value="">Any album</option>
+        {% for album in albums %}
+          <option value="{{ album.pk }}" {% if filters.album_id == album.pk|stringformat:"s" %}selected{% endif %}>{{ album.artist.name }} — {{ album.title }}</option>
+        {% endfor %}
+      </select>
+
+      <label class="sr-only" for="f-genre">Genre</label>
+      <select class="select-input" id="f-genre" name="genre_id">
+        <option value="">Any genre</option>
+        {% for genre in genres %}
+          <option value="{{ genre.pk }}" {% if filters.genre_id == genre.pk|stringformat:"s" %}selected{% endif %}>{{ genre.name }}</option>
+        {% endfor %}
+      </select>
+
+      <label class="sr-only" for="f-audio">Audio</label>
+      <select class="select-input" id="f-audio" name="has_audio">
+        <option value="">Any</option>
+        <option value="yes" {% if filters.has_audio == 'yes' %}selected{% endif %}>Has audio</option>
+        <option value="no" {% if filters.has_audio == 'no' %}selected{% endif %}>Missing audio</option>
+      </select>
+
+      <button class="btn btn--sm" type="submit">Filter</button>
+      <a class="btn btn--sm btn--ghost" href="{% url 'dashboard:bulk' %}">Reset</a>
+    </form>
+
+    <div class="panel__body panel__body--flush">
+      <div class="table-wrap">
+        <form method="post" action="{% url 'dashboard:bulk-action' %}" id="bulk-form">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          {% for key, value in filters.items %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
+
+          <table class="data">
+            <thead>
+              <tr>
+                <th class="cell-check">
+                  <input type="checkbox" id="sel-all" aria-label="Select all tracks on this page">
+                </th>
+                <th class="num">#</th>
+                <th>Track</th>
+                <th>Artist</th>
+                <th>Album</th>
+                <th>Status</th>
+                <th class="num">Plays</th>
+                <th>Genres</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for track in tracks %}
+                <tr>
+                  <td class="cell-check">
+                    <input type="checkbox" name="track_ids" value="{{ track.pk }}" class="sel"
+                           aria-label="Select {{ track.title }}">
+                  </td>
+                  <td class="num dim">{{ forloop.counter }}</td>
+                  <td>
+                    <div class="media-cell__title text-sm">{{ track.title }}</div>
+                    <div class="media-cell__sub mono">{{ track.isrc|default:"—" }}</div>
+                  </td>
+                  <td class="text-sm">{{ track.artist.name }}</td>
+                  <td class="text-sm dim">{{ track.album.title|default:"—" }}</td>
+                  <td><span class="chip chip--{{ track.status }}">{{ track.get_status_display }}</span></td>
+                  <td class="num">{{ track.play_count|intcomma }}</td>
+                  <td class="text-xs dim truncate" style="max-width:180px">
+                    {% for genre in track.genres.all %}{{ genre.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="8" class="empty">No tracks match these filters.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head"><div class="panel__title">Actions</div></div>
+    <div class="panel__body">
+      <p class="muted text-sm" style="margin:0 0 14px">
+        With nothing ticked, an action applies to every track the filters above match.
+      </p>
+
+      <div class="grid grid--2">
+        <div class="stack" style="gap:10px">
+          <div class="text-xs muted">STATUS</div>
+          <div class="row row--wrap">
+            <button class="btn btn--sm btn--primary" type="submit" name="action" value="publish" form="bulk-form">Publish</button>
+            <button class="btn btn--sm btn--ghost" type="submit" name="action" value="processing" form="bulk-form">Processing</button>
+            <button class="btn btn--sm btn--ghost" type="submit" name="action" value="draft" form="bulk-form">Draft</button>
+            <button class="btn btn--sm btn--ghost" type="submit" name="action" value="archive" form="bulk-form">Archive</button>
+          </div>
+
+          <div class="text-xs muted" style="margin-top:6px">FLAGS</div>
+          <div class="row row--wrap">
+            <button class="btn btn--sm btn--ghost" type="submit" name="action" value="mark_explicit" form="bulk-form">Mark explicit</button>
+            <button class="btn btn--sm btn--ghost" type="submit" name="action" value="clear_explicit" form="bulk-form">Clear explicit</button>
+          </div>
+        </div>
+
+        <div class="stack" style="gap:10px">
+          <div class="text-xs muted">MOVE TO ALBUM</div>
+          <div class="row">
+            <label class="sr-only" for="a-album">Album</label>
+            <select class="select-input" id="a-album" name="album_id" form="bulk-form">
+              <option value="">— clear album —</option>
+              {% for album in albums %}
+                <option value="{{ album.pk }}">{{ album.artist.name }} — {{ album.title }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn--sm" type="submit" name="action" value="set_album" form="bulk-form">Apply</button>
+          </div>
+
+          <div class="text-xs muted" style="margin-top:6px">MOVE TO ARTIST</div>
+          <div class="row">
+            <label class="sr-only" for="a-artist">Artist</label>
+            <select class="select-input" id="a-artist" name="artist_id" form="bulk-form">
+              <option value="">— choose artist —</option>
+              {% for artist in artists %}<option value="{{ artist.pk }}">{{ artist.name }}</option>{% endfor %}
+            </select>
+            <button class="btn btn--sm" type="submit" name="action" value="set_artist" form="bulk-form">Apply</button>
+          </div>
+        </div>
+
+        <div class="stack" style="gap:10px">
+          <div class="text-xs muted">GENRES</div>
+          <label class="sr-only" for="a-genres">Genres</label>
+          <select class="select-input" id="a-genres" name="genre_ids" form="bulk-form" multiple size="4">
+            {% for genre in genres %}<option value="{{ genre.pk }}">{{ genre.name }}</option>{% endfor %}
+          </select>
+          <div class="row">
+            <button class="btn btn--sm btn--ghost" type="submit" name="action" value="add_genres" form="bulk-form">Add</button>
+            <button class="btn btn--sm btn--ghost" type="submit" name="action" value="replace_genres" form="bulk-form">Replace</button>
+          </div>
+        </div>
+
+        <div class="stack" style="gap:10px">
+          <div class="text-xs muted">RESET COUNTERS</div>
+          {% for value, label in counters %}
+            <label class="text-sm row" style="gap:7px">
+              <input type="checkbox" name="counters" value="{{ value }}" form="bulk-form">
+              {{ label }}
+            </label>
+          {% endfor %}
+          <div class="row">
+            <button class="btn btn--sm btn--ghost" type="submit" name="action" value="reset_counters" form="bulk-form">Reset</button>
+          </div>
+
+          <div class="text-xs muted" style="margin-top:6px;color:var(--rose)">DANGER</div>
+          <label class="text-sm row" style="gap:7px">
+            <input type="checkbox" name="confirm_delete" value="yes" form="bulk-form">
+            I understand this deletes tracks and their play history
+          </label>
+          <div class="row">
+            <button class="btn btn--sm btn--ghost" type="submit" name="action" value="delete" form="bulk-form">Delete permanently</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {% if is_paginated %}
+    <nav class="pager" aria-label="Pagination">
+      {% if page_obj.has_previous %}
+        <a class="pager__page" href="?{% for k, v in filters.items %}{% if v %}{{ k }}={{ v|urlencode }}&amp;{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">← Prev</a>
+      {% endif %}
+      <span class="pager__page is-active">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a class="pager__page" href="?{% for k, v in filters.items %}{% if v %}{{ k }}={{ v|urlencode }}&amp;{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Next →</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var selectAll = document.getElementById("sel-all");
+    if (!selectAll) return;
+    var boxes = Array.prototype.slice.call(document.querySelectorAll(".sel"));
+
+    selectAll.addEventListener("change", function () {
+      boxes.forEach(function (box) { box.checked = selectAll.checked; });
+    });
+    boxes.forEach(function (box) {
+      box.addEventListener("change", function () {
+        var chosen = boxes.filter(function (b) { return b.checked; });
+        selectAll.checked = chosen.length === boxes.length && boxes.length > 0;
+        selectAll.indeterminate = chosen.length > 0 && chosen.length < boxes.length;
+      });
+    });
+  })();
+</script>
+{% endblock %}

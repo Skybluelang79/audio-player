@@ -1,0 +1,93 @@
+{% extends "site_base.html" %}
+{% load humanize %}
+
+{% block title %}{{ track.title }} · {{ track.artist.name }} · {{ SITE_NAME }}{% endblock %}
+{% block head %}
+  <meta name="description" content="{{ track.title }} by {{ track.artist.name }} — {{ track.play_count|intcomma }} plays.">
+{% endblock %}
+
+{% block content %}
+<article class="detail">
+  <header class="detail__hero">
+    <div class="detail__art">
+      {% if track.cover_image %}
+        <img src="{{ track.cover_image.url }}" alt="Cover art for {{ track.title }}">
+      {% elif track.album.cover_image %}
+        <img src="{{ track.album.cover_image.url }}" alt="Cover art for {{ track.album.title }}">
+      {% elif track.artist.image %}
+        <img src="{{ track.artist.image.url }}" alt="Photo of {{ track.artist.name }}">
+      {% else %}
+        <span class="art art--placeholder art--xl" aria-hidden="true">♫</span>
+      {% endif %}
+    </div>
+    <div class="detail__body">
+      <span class="chip chip--cyan">Track</span>
+      <h1 class="detail__title">{{ track.title }}</h1>
+      <p class="detail__subtitle">
+        <a href="{% url 'music:artist-detail' track.artist.slug %}">{{ track.artist.name }}</a>
+        {% if track.album %} · <a href="{% url 'music:album-detail' track.album.slug %}">{{ track.album.title }}</a>{% endif %}
+      </p>
+      <p class="detail__meta mono">
+        {{ track.play_count|intcomma }} plays · {{ track.like_count|intcomma }} likes · {{ track.duration_display }}
+        {% if track.plays_today %}<span class="chip chip--lime">{{ track.plays_today }} today</span>{% endif %}
+        {% if track.explicit %}<span class="chip">E</span>{% endif %}
+      </p>
+
+      <div class="detail__chips">
+        {% for genre in track.genres.all %}
+          <a class="chip" href="{% url 'music:genre-detail' genre.slug %}">{{ genre.name }}</a>
+        {% endfor %}
+      </div>
+
+      <div class="detail__actions">
+        <button class="btn btn--primary" type="button"
+                data-track-id="{{ track.id }}"
+                data-track-title="{{ track.title }}"
+                data-track-artist="{{ track.artist.name }}"
+                data-track-artist-slug="{{ track.artist.slug }}"
+                data-track-url="{% url 'music:track-detail' track.slug %}"
+                data-track-duration="{{ track.duration_seconds }}"
+                {% if track.cover_image %}data-track-cover="{{ track.cover_image.url }}"{% endif %}
+                data-play="{{ track.id }}">
+          ▶ Play
+        </button>
+        {% if track.audio_file %}
+          <a class="btn btn--ghost" href="{% url 'api:track-download' track.id %}" download>Download</a>
+        {% else %}
+          <span class="chip chip--amber">No audio file</span>
+        {% endif %}
+        {% if user.is_authenticated %}
+          <button class="btn btn--ghost" type="button" data-favorite="{{ track.id }}"
+                  aria-pressed="{% if is_favorite %}true{% else %}false{% endif %}">
+            {% if is_favorite %}♥ Favourited{% else %}♡ Favourite{% endif %}
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  {% if track.lyrics %}
+    <section class="panel">
+      <div class="panel__head"><div class="panel__title">Lyrics</div></div>
+      <div class="panel__body lyrics">{{ track.lyrics|linebreaks }}</div>
+    </section>
+  {% endif %}
+
+  {% if in_album %}
+    <section class="shelf">
+      <div class="shelf__head">
+        <h2 class="shelf__title">From {{ track.album.title }}</h2>
+        <a class="shelf__more" href="{% url 'music:album-detail' track.album.slug %}">Album →</a>
+      </div>
+      {% include "music/includes/track_table.html" with tracks=in_album show_number=True show_album=False %}
+    </section>
+  {% endif %}
+
+  {% if related %}
+    <section class="shelf">
+      <div class="shelf__head"><h2 class="shelf__title">More like this</h2></div>
+      {% include "music/includes/track_table.html" with tracks=related %}
+    </section>
+  {% endif %}
+</article>
+{% endblock %}

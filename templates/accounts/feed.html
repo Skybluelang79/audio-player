@@ -1,0 +1,33 @@
+{% extends "site_base.html" %}
+
+{% block title %}Feed · {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<h1 class="detail__title">Your feed</h1>
+
+{% if new_from_artists %}
+  <section class="shelf">
+    <div class="shelf__head"><h2 class="shelf__title">New from artists you follow</h2></div>
+    {% include "music/includes/track_table.html" with tracks=new_from_artists show_album=True %}
+  </section>
+{% else %}
+  <section class="shelf">
+    <div class="shelf__head"><h2 class="shelf__title">New from artists you follow</h2></div>
+    <p class="empty">Follow artists to see their new releases here.</p>
+  </section>
+{% endif %}
+
+{% if playlists %}
+  {% include "music/includes/card_grid.html" with items=playlists kind="playlist" title="From people you follow" %}
+{% else %}
+  <section class="shelf">
+    <div class="shelf__head"><h2 class="shelf__title">From people you follow</h2></div>
+    <p class="empty">Follow other listeners to see their public playlists here.</p>
+  </section>
+{% endif %}
+
+<p class="empty">
+  <a href="{% url 'music:home' %}">Explore the catalogue</a> · 
+  <a href="{% url 'accounts:profile' user.id %}">Your profile</a>
+</p>
+{% endblock %}

@@ -1,0 +1,22 @@
+# Normalise line endings in the repository, not in the working copy, so the
+# same tree checks out identically on Windows dev machines and Linux hosts.
+* text=auto eol=lf
+
+# Binary assets must never be touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.mp3 binary
+*.wav binary
+*.m4a binary
+*.flac binary
+*.ogg binary
+*.pdf binary

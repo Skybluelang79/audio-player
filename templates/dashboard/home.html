@@ -1,0 +1,289 @@
+{% extends "dashboard/base.html" %}
+{% load humanize %}
+
+{% block title %}Control Deck · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}Control Deck{% endblock %}
+{% block page_meta %}{{ overview.total_tracks|intcomma }} tracks · {{ overview.total_plays|intcomma }} plays{% endblock %}
+
+{% block header_actions %}
+  <span class="chip chip--cyan chip--live"><span class="chip-dot"></span> Live</span>
+  <a class="btn btn--sm btn--primary" href="{% url 'dashboard:upload' %}">＋ Upload track</a>
+{% endblock %}
+
+{% block content %}
+
+  {# ---- headline tiles ---- #}
+  <div class="stats">
+    {% include "dashboard/includes/stat_tile.html" with label="Total tracks" value=overview.total_tracks accent="#00e5ff" foot=overview.draft_tracks|stringformat:"s"|add:" drafts" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Artists" value=overview.total_artists accent="#b47cff" foot=overview.total_genres|stringformat:"s"|add:" genres" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Albums" value=overview.total_albums accent="#4da3ff" foot=overview.total_duration_hours|stringformat:"s"|add:" hrs of audio" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Total plays" value=overview.total_plays delta=growth.change_percent accent="#00e5a0" foot="vs previous 30d" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Playlists" value=overview.total_playlists accent="#ff4ecd" foot=overview.public_playlists|stringformat:"s"|add:" public" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Favourites" value=overview.total_favorites accent="#ffb020" foot=overview.total_listeners|stringformat:"s"|add:" listeners" %}
+  </div>
+
+  {# ---- plays over time + popularity mix ---- #}
+  <div class="grid grid--wide-left">
+    <section class="panel">
+      <div class="panel__head">
+        <div>
+          <div class="panel__title">Plays · last 14 days</div>
+          <div class="panel__hint">{{ engagement.plays|intcomma }} plays · {{ engagement.unique_listeners|intcomma }} listeners</div>
+        </div>
+        <a class="btn btn--sm btn--ghost" href="{% url 'dashboard:audience' %}">Audience →</a>
+      </div>
+      <div class="panel__body">
+        <div class="chart chart--tall"><canvas id="chart-plays" aria-label="Daily play volume"></canvas></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Popularity mix</div>
+        <div class="panel__hint">share of plays</div>
+      </div>
+      <div class="panel__body">
+        <div class="chart"><canvas id="chart-distribution" aria-label="Play share by track"></canvas></div>
+      </div>
+    </section>
+  </div>
+
+  {# ---- top tracks + genre split ---- #}
+  <div class="grid grid--wide-left">
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Top tracks</div>
+        <a class="btn btn--sm btn--ghost" href="/admin/music/track/" target="_blank" rel="noopener">Manage →</a>
+      </div>
+      <div class="panel__body panel__body--flush">
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th style="width:44px">#</th>
+                <th>Track</th>
+                <th style="width:96px">Status</th>
+                <th class="num" style="width:92px">Plays</th>
+                <th class="num" style="width:78px">Likes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for track in top_tracks %}
+                <tr>
+                  <td><span class="rank {% if forloop.counter <= 3 %}rank--{{ forloop.counter }}{% endif %}">{{ forloop.counter }}</span></td>
+                  <td>
+                    <div class="media-cell">
+                      {% if track.cover_image %}
+                        <img class="art" src="{{ track.cover_image.url }}" alt="" loading="lazy">
+                      {% else %}
+                        <span class="art art--placeholder" aria-hidden="true">♫</span>
+                      {% endif %}
+                      <div class="media-cell__text">
+                        <div class="media-cell__title">
+                          <a href="{% url 'dashboard:track-analytics' track.pk %}">{{ track.title }}</a>
+                        </div>
+                        <div class="media-cell__sub">{{ track.artist.name }}{% if track.album %} · {{ track.album.title }}{% endif %}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    {% if track.status == 'published' %}
+                      <span class="chip chip--lime">Live</span>
+                    {% elif track.status == 'draft' %}
+                      <span class="chip chip--amber">Draft</span>
+                    {% else %}
+                      <span class="chip">{{ track.get_status_display }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="num">{{ track.play_count|intcomma }}</td>
+                  <td class="num dim">{{ track.like_count|intcomma }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5" class="empty">No published tracks yet. Upload the first one.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <div class="stack">
+      <section class="panel">
+        <div class="panel__head">
+          <div class="panel__title">Trending now</div>
+          <div class="panel__hint">7d decay</div>
+        </div>
+        <div class="panel__body panel__body--flush">
+          <div class="table-wrap">
+            <table class="data">
+              <tbody>
+                {% for track in trending_tracks %}
+                  <tr>
+                    <td>
+                      <div class="media-cell">
+                        <span class="rank">{{ forloop.counter }}</span>
+                        <div class="media-cell__text">
+                          <div class="media-cell__title">{{ track.title }}</div>
+                          <div class="media-cell__sub">{{ track.artist.name }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="num strong">{{ track.play_count|intcomma }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td class="empty">Not enough play data yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__head">
+          <div class="panel__title">Genre split</div>
+        </div>
+        <div class="panel__body">
+          <div class="chart"><canvas id="chart-genres" aria-label="Plays by genre"></canvas></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  {# ---- engagement + recent activity ---- #}
+  <div class="grid grid--2">
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Uploads · last 14 days</div>
+        <div class="panel__hint">{{ overview.published_tracks|intcomma }} live</div>
+      </div>
+      <div class="panel__body">
+        <div class="chart"><canvas id="chart-uploads" aria-label="Tracks uploaded per day"></canvas></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Recently added</div>
+        <a class="btn btn--sm btn--ghost" href="{% url 'dashboard:catalogue' %}">Catalogue →</a>
+      </div>
+      <div class="panel__body panel__body--flush">
+        <div class="table-wrap">
+          <table class="data">
+            <tbody>
+              {% for track in recent_tracks %}
+                <tr>
+                  <td>
+                    <div class="media-cell">
+                      {% if track.cover_image %}
+                        <img class="art" src="{{ track.cover_image.url }}" alt="" loading="lazy">
+                      {% else %}
+                        <span class="art art--placeholder" aria-hidden="true">♫</span>
+                      {% endif %}
+                      <div class="media-cell__text">
+                        <div class="media-cell__title">{{ track.title }}</div>
+                        <div class="media-cell__sub">{{ track.artist.name }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="num dim text-xs">{{ track.created_at|timesince }} ago</td>
+                </tr>
+              {% empty %}
+                <tr><td class="empty">Nothing uploaded yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="grid grid--2">
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Playlist activity</div>
+        <a class="btn btn--sm btn--ghost" href="/admin/playlists/playlist/" target="_blank" rel="noopener">Manage →</a>
+      </div>
+      <div class="panel__body panel__body--flush">
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th>Playlist</th><th>Owner</th><th class="num">Tracks</th><th>Visibility</th></tr>
+            </thead>
+            <tbody>
+              {% for playlist in recent_playlists %}
+                <tr>
+                  <td class="strong">{{ playlist.name }}</td>
+                  <td class="dim">{{ playlist.owner.display_name }}</td>
+                  <td class="num">{{ playlist.track_count }}</td>
+                  <td>
+                    {% if playlist.visibility == 'public' %}
+                      <span class="chip chip--lime">Public</span>
+                    {% elif playlist.visibility == 'unlisted' %}
+                      <span class="chip chip--cyan">Unlisted</span>
+                    {% else %}
+                      <span class="chip">Private</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4" class="empty">No playlists created yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Operations</div>
+        <div class="panel__hint">rollups &amp; maintenance</div>
+      </div>
+      <div class="panel__body">
+        <div class="stack" style="gap:11px">
+          <div class="row row--between">
+            <div>
+              <div class="text-sm strong">Rebuild play rollups</div>
+              <div class="text-xs muted">Recompute DailyTrackStat from raw events</div>
+            </div>
+            <span class="chip mono">manage.py aggregate_plays</span>
+          </div>
+          <div class="row row--between">
+            <div>
+              <div class="text-sm strong">Latest platform rollup</div>
+              <div class="text-xs muted">
+                {% if platform_stats %}
+                  {{ platform_stats.date }} · {{ platform_stats.total_plays|intcomma }} plays
+                {% else %}
+                  Not aggregated yet
+                {% endif %}
+              </div>
+            </div>
+            {% if platform_stats %}
+              <span class="chip chip--violet">{{ platform_stats.unique_listeners|intcomma }} listeners</span>
+            {% endif %}
+          </div>
+          <div class="row row--between">
+            <div>
+              <div class="text-sm strong">Completion rate</div>
+              <div class="text-xs muted">Finished vs skipped plays, 30d</div>
+            </div>
+            <span class="chip chip--cyan">{{ engagement.completion_rate }}%</span>
+          </div>
+          <div class="row row--wrap" style="margin-top:6px">
+            <a class="btn btn--sm" href="/admin/analytics/dailytrackstat/" target="_blank" rel="noopener">Daily stats</a>
+            <a class="btn btn--sm" href="/admin/analytics/artistlistenersnapshot/" target="_blank" rel="noopener">Listener snapshots</a>
+            <a class="btn btn--sm" href="{% url 'dashboard:data' %}?days=30" target="_blank" rel="noopener">JSON payload</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  {{ timeseries|json_script:"chart-timeseries" }}
+  {{ uploads|json_script:"chart-uploads" }}
+  {{ play_distribution|json_script:"chart-distribution" }}
+  {{ genre_distribution|json_script:"chart-genres" }}
+
+{% endblock %}

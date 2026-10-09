@@ -1,0 +1,74 @@
+{% extends "site_base.html" %}
+{% load humanize %}
+
+{% block title %}{{ profile_user.display_name }} · {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<article class="detail">
+  <header class="detail__hero">
+    <div class="detail__art detail__art--round">
+      {% if profile_user.avatar %}
+        <img src="{{ profile_user.avatar.url }}" alt="Profile photo of {{ profile_user.display_name }}">
+      {% else %}
+        <span class="art art--placeholder art--xl" aria-hidden="true">{{ profile_user.initials }}</span>
+      {% endif %}
+    </div>
+    <div class="detail__body">
+      <span class="chip chip--violet">{% if profile_user.is_verified %}Verified listener{% else %}Listener{% endif %}</span>
+      <h1 class="detail__title">{{ profile_user.full_name }}</h1>
+      <p class="detail__meta mono">
+        Joined {{ profile_user.date_joined|date:"F Y" }}
+        {% if profile_user.country %} · {{ profile_user.country }}{% endif %}
+      </p>
+
+      <div class="detail__chips">
+        <span class="chip chip--cyan" title="People following {{ profile_user.display_name }}">
+          {{ followers_count|intcomma }} followers
+        </span>
+        <span class="chip" title="People {{ profile_user.display_name }} follows">
+          {{ following_count|intcomma }} following
+        </span>
+        <a class="chip" href="{% url 'music:library' %}">{{ profile_user.playlist_count|default:0 }} playlists</a>
+      </div>
+
+      <div class="detail__actions">
+        {% if user.is_authenticated %}
+          {% if is_self %}
+            <a class="btn btn--ghost" href="{% url 'music:library' %}">Your library</a>
+          {% else %}
+            <button class="btn btn--ghost" type="button" data-follow-user="{{ profile_user.id }}"
+                    aria-pressed="{% if is_following %}true{% else %}false{% endif %}">
+              <span data-follow-label>{% if is_following %}Following{% else %}Follow{% endif %}</span>
+            </button>
+          {% endif %}
+        {% elif not is_self %}
+          <a class="btn btn--primary" href="{% url 'login' %}?next={{ request.path }}">Sign in to follow</a>
+        {% endif %}
+      </div>
+
+      {% if profile_user.bio %}<p class="detail__bio">{{ profile_user.bio|linebreaksbr }}</p>{% endif %}
+    </div>
+  </header>
+
+  {% if public_playlists %}
+    {% include "music/includes/card_grid.html" with items=public_playlists kind="playlist" title="Public playlists" %}
+  {% endif %}
+
+  {% if favorites %}
+    <section class="shelf">
+      <div class="shelf__head"><h2 class="shelf__title">Favourites</h2></div>
+      {% include "music/includes/track_table.html" with tracks=favorites %}
+    </section>
+  {% endif %}
+
+  {% if following_artists %}
+    {% include "music/includes/card_grid.html" with items=following_artists kind="artist" title="Following artists" %}
+  {% endif %}
+
+  {% if not public_playlists and not favorites and not following_artists %}
+    <p class="empty">
+      {% if is_self %}Nothing here yet — follow artists or save some playlists.{% else %}{{ profile_user.display_name }} has not published anything yet.{% endif %}
+    </p>
+  {% endif %}
+</article>
+{% endblock %}

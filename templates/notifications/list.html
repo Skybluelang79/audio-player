@@ -1,0 +1,63 @@
+{% extends "site_base.html" %}
+{% load humanize %}
+
+{% block title %}Notices · {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="shelf">
+  <div class="shelf__head">
+    <h1 class="shelf__title">Notices
+      {% if unread_count %}<span class="badge" data-notif-badge>{{ unread_count }}</span>{% endif %}
+    </h1>
+    {% if notifications %}
+      <a class="shelf__more" href="/api/notifications/" rel="nofollow">API</a>
+    {% endif %}
+  </div>
+
+  <ul class="notif-list">
+    {% for notice in notifications %}
+      <li class="notif{% if not notice.is_read %} notif--unread{% endif %}">
+        {% if not notice.is_read %}<span class="notif__dot" aria-hidden="true"></span>{% endif %}
+        <div class="notif__body">
+          {% if notice.url %}
+            <a class="notif__text" href="{{ notice.url }}" data-notif="{{ notice.id }}">{{ notice.text }}</a>
+          {% else %}
+            <span class="notif__text">{{ notice.text }}</span>
+          {% endif %}
+          <span class="notif__time">
+            {{ notice.created_at|naturaltime }}
+            {% if notice.actor and notice.actor_id != user.id %}
+              · <a href="{% url 'accounts:profile' notice.actor_id %}">{{ notice.actor.display_name }}</a>
+            {% endif %}
+          </span>
+        </div>
+      </li>
+    {% empty %}
+      <li class="notif"><div class="notif__body"><span class="notif__text">No notices yet — follow artists and listeners to see activity here.</span></div></li>
+    {% endfor %}
+  </ul>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="pagination" aria-label="Notice pages">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">← Newer</a>{% endif %}
+      <span class="mono">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Older →</a>{% endif %}
+    </nav>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Marking a notice read is a side effect of simply being delivered (a GET): a
+  // notice inbox is a read surface, so there is no per-item "mark read" tap.
+  document.querySelectorAll("a[data-notif]").forEach(function (link) {
+    link.addEventListener("click", function () {
+      fetch("/api/notifications/" + link.dataset.notif + "/read/", {
+        method: "POST", credentials: "same-origin",
+        headers: { "X-CSRFToken": (document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/) || [])[1] || "" }
+      }).catch(function () {});
+    });
+  });
+</script>
+{% endblock %}

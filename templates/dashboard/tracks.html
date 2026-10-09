@@ -1,0 +1,113 @@
+{% extends "dashboard/base.html" %}
+{% load humanize %}
+
+{% block title %}{{ track.title }} · analytics{% endblock %}
+{% block page_title %}{{ track.title }}{% endblock %}
+{% block page_meta %}{{ track.artist.name }}{% if track.album %} · {{ track.album.title }}{% endif %}{% endblock %}
+
+{% block header_actions %}
+  <a class="btn btn--sm" href="/admin/music/track/{{ track.pk }}/change/" target="_blank" rel="noopener">Edit in admin →</a>
+{% endblock %}
+
+{% block content %}
+
+  <div class="row row--wrap" style="margin-bottom:18px">
+    {% if track.cover_image %}
+      <img class="art" style="width:72px;height:72px;flex:0 0 72px;border-radius:14px" src="{{ track.cover_image.url }}" alt="">
+    {% else %}
+      <span class="art art--placeholder" style="width:72px;height:72px;flex:0 0 72px;font-size:22px" aria-hidden="true">♫</span>
+    {% endif %}
+    <div style="min-width:0">
+      <h2 style="font-size:20px">{{ track.title }}</h2>
+      <div class="dim text-sm">
+        {{ track.artist.name }}{% if track.album %} · {{ track.album.title }}{% endif %}{% if track.release_date %} · {{ track.release_date }}{% endif %}
+      </div>
+      <div class="row row--wrap" style="margin-top:8px">
+        {% if track.status == 'published' %}<span class="chip chip--lime">Live</span>
+        {% elif track.status == 'draft' %}<span class="chip chip--amber">Draft</span>
+        {% else %}<span class="chip">{{ track.get_status_display }}</span>{% endif %}
+        {% if track.explicit %}<span class="chip chip--rose">Explicit</span>{% endif %}
+        {% if track.isrc %}<span class="chip mono">{{ track.isrc }}</span>{% endif %}
+        <span class="chip mono">{{ track.duration_display }}</span>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    {% if track.audio_file %}
+      <audio controls preload="none" src="{{ track.audio_file.url }}" style="max-width:340px;width:100%"></audio>
+    {% endif %}
+  </div>
+
+  <div class="stats">
+    {% include "dashboard/includes/stat_tile.html" with label="Total plays" value=track.play_count accent="#00e5ff" foot="all time" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Plays today" value=plays_today accent="#00e5a0" foot="since midnight" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Likes" value=track.like_count accent="#ff4ecd" foot="thumbs up" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Favourites" value=favorites accent="#ffb020" foot="users saving" %}
+    {% include "dashboard/includes/stat_tile.html" with label="In playlists" value=appearances accent="#4da3ff" foot="placements" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Listened" value=total_listened_seconds|stringformat:"s"|add:"s" accent="#b47cff" foot="total seconds" %}
+  </div>
+
+  <div class="grid grid--wide-left">
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Recent play events</div>
+        <div class="panel__hint">last 30 days</div>
+      </div>
+      <div class="panel__body panel__body--flush">
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>When</th><th>Listener</th><th>Source</th><th class="num">Seconds</th><th>Done</th></tr></thead>
+            <tbody>
+              {% for event in recent_events %}
+                <tr>
+                  <td class="mono text-xs">{{ event.played_at|date:"Y-m-d H:i" }}</td>
+                  <td class="dim">{{ event.user.display_name|default:"anonymous" }}</td>
+                  <td><span class="chip">{{ event.get_source_display }}</span></td>
+                  <td class="num dim">{{ event.listened_seconds }}</td>
+                  <td>{% if event.completed %}<span class="chip chip--lime">Yes</span>{% else %}<span class="chip">No</span>{% endif %}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5" class="empty">No plays recorded in the last 30 days.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head"><div class="panel__title">Playback sources</div></div>
+      <div class="panel__body">
+        <div class="chart"><canvas id="chart-sources" aria-label="Play sources"></canvas></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="panel__head">
+      <div class="panel__title">Daily rollup</div>
+      <div class="panel__hint">from aggregate_plays</div>
+    </div>
+    <div class="panel__body panel__body--flush">
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Date</th><th class="num">Plays</th><th class="num">Listeners</th><th class="num">Seconds</th></tr></thead>
+          <tbody>
+            {% for stat in daily_stats %}
+              <tr>
+                <td class="mono text-sm">{{ stat.date|date:"Y-m-d" }}</td>
+                <td class="num">{{ stat.plays|intcomma }}</td>
+                <td class="num dim">{{ stat.unique_listeners }}</td>
+                <td class="num dim">{{ stat.total_listened_seconds|intcomma }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="empty">Run <code>manage.py aggregate_plays</code> to build this table.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  {{ source_split|json_script:"chart-sources" }}
+
+{% endblock %}

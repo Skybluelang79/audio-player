@@ -1,0 +1,52 @@
+{% extends "site_base.html" %}
+{% load humanize %}
+
+{% block title %}Playlists · {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<article class="detail">
+  <header class="detail__hero detail__hero--slim">
+    <div class="detail__body">
+      <span class="chip chip--magenta">Playlists</span>
+      <h1 class="detail__title">Playlists</h1>
+      <p class="detail__meta mono">{{ playlists|length }} public</p>
+    </div>
+  </header>
+
+  {% if mine %}
+    {% include "music/includes/card_grid.html" with items=mine kind="playlist" title="Your playlists" %}
+  {% endif %}
+
+  <section class="shelf">
+    <div class="shelf__head"><h2 class="shelf__title">Public directory</h2></div>
+    <ul class="cards">
+      {% for playlist in playlists %}
+        <li class="card">
+          <a class="card__link" href="{% url 'playlists:detail' playlist.slug %}">
+            <span class="card__art">
+              {% if playlist.cover_image %}
+                <img src="{{ playlist.cover_image.url }}" alt="" loading="lazy">
+              {% else %}
+                <span class="art art--placeholder" aria-hidden="true">≣</span>
+              {% endif %}
+            </span>
+            <span class="card__title">{{ playlist.name }}</span>
+            <span class="card__sub">
+              {{ playlist.owner.display_name }} · {{ playlist.entry_count|default:playlist.track_count }} tracks
+            </span>
+          </a>
+          <button class="card__play" type="button" data-play-album="{{ playlist.slug }}" aria-label="Play {{ playlist.name }}">▶</button>
+        </li>
+      {% empty %}
+        <li class="empty">No public playlists yet.</li>
+      {% endfor %}
+    </ul>
+    {% if is_paginated %}
+      <nav class="pager">
+        {% if page_obj.has_previous %}<a class="btn btn--sm btn--ghost" href="?page={{ page_obj.previous_page_number }}">← Previous</a>{% endif %}
+        {% if page_obj.has_next %}<a class="btn btn--sm btn--ghost" href="?page={{ page_obj.next_page_number }}">Next →</a>{% endif %}
+      </nav>
+    {% endif %}
+  </section>
+</article>
+{% endblock %}

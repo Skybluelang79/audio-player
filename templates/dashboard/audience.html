@@ -1,0 +1,131 @@
+{% extends "dashboard/base.html" %}
+{% load humanize %}
+
+{% block title %}Audience · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}Audience &amp; Play Analytics{% endblock %}
+{% block page_meta %}{{ engagement_30.plays|intcomma }} plays · {{ engagement_30.unique_listeners|intcomma }} listeners (30d){% endblock %}
+
+{% block content %}
+
+  <div class="stats">
+    {% include "dashboard/includes/stat_tile.html" with label="Plays · 7d" value=engagement_7.plays delta=growth_7.change_percent accent="#00e5ff" foot="week over week" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Plays · 30d" value=engagement_30.plays delta=growth_30.change_percent accent="#b47cff" foot="month over month" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Listeners · 30d" value=engagement_30.unique_listeners accent="#4da3ff" foot="unique accounts" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Completion" value=engagement_30.completion_rate|stringformat:"s"|add:"%" accent="#00e5a0" foot="plays finished" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Avg listen" value=engagement_30.avg_listened_seconds|stringformat:"s"|add:"s" accent="#ffb020" foot="per playback" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Tracks played" value=engagement_30.unique_tracks accent="#ff5470" foot="distinct in 30d" %}
+  </div>
+
+  <div class="grid grid--wide-left">
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Play volume · last 30 days</div>
+        <div class="panel__hint">daily</div>
+      </div>
+      <div class="panel__body">
+        <div class="chart chart--tall"><canvas id="chart-plays" aria-label="Daily play volume, 30 days"></canvas></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Daily rollups</div>
+        <div class="panel__hint">{{ platform_stats|length }} days</div>
+      </div>
+      <div class="panel__body panel__body--flush">
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th>Date</th><th class="num">Plays</th><th class="num">Listeners</th><th class="num">Tracks</th></tr>
+            </thead>
+            <tbody>
+              {% for stat in platform_stats %}
+                <tr>
+                  <td class="mono text-sm">{{ stat.date|date:"Y-m-d" }}</td>
+                  <td class="num">{{ stat.total_plays|intcomma }}</td>
+                  <td class="num dim">{{ stat.unique_listeners|intcomma }}</td>
+                  <td class="num dim">{{ stat.unique_tracks|intcomma }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4" class="empty">Run <code>manage.py aggregate_plays</code> to build rollups.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="grid grid--2">
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Artist leaderboard</div>
+        <div class="panel__hint">30d window</div>
+      </div>
+      <div class="panel__body panel__body--flush">
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th style="width:44px">#</th><th>Artist</th><th class="num">30d plays</th><th class="num">Listeners</th></tr>
+            </thead>
+            <tbody>
+              {% for artist in artist_leaderboard %}
+                <tr>
+                  <td><span class="rank {% if forloop.counter <= 3 %}rank--{{ forloop.counter }}{% endif %}">{{ forloop.counter }}</span></td>
+                  <td>
+                    <div class="media-cell">
+                      {% if artist.image %}
+                        <img class="art" src="{{ artist.image.url }}" alt="" loading="lazy">
+                      {% else %}
+                        <span class="art art--placeholder" aria-hidden="true">◈</span>
+                      {% endif %}
+                      <div class="media-cell__text">
+                        <div class="media-cell__title">{{ artist.name }}</div>
+                        <div class="media-cell__sub">{{ artist.country|default:"Unlisted region" }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="num">{{ artist.window_plays|intcomma }}</td>
+                  <td class="num dim">{{ artist.monthly_listeners|intcomma }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4" class="empty">No listening activity in this window.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Top public playlists</div>
+        <a class="btn btn--sm btn--ghost" href="/admin/playlists/playlist/" target="_blank" rel="noopener">Manage →</a>
+      </div>
+      <div class="panel__body panel__body--flush">
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th>Playlist</th><th>Owner</th><th class="num">Tracks</th><th class="num">Plays</th></tr>
+            </thead>
+            <tbody>
+              {% for playlist in playlists %}
+                <tr>
+                  <td class="strong">{{ playlist.name }}</td>
+                  <td class="dim">{{ playlist.owner.display_name }}</td>
+                  <td class="num">{{ playlist.track_count }}</td>
+                  <td class="num dim">{{ playlist.total_plays|intcomma }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4" class="empty">No public playlists yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  {{ timeseries|json_script:"chart-timeseries" }}
+
+{% endblock %}

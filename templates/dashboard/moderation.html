@@ -1,0 +1,167 @@
+{% extends "dashboard/base.html" %}
+{% load humanize %}
+
+{% block title %}Moderation · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}Moderation{% endblock %}
+{% block page_meta %}{{ counts.queue }} comment(s) awaiting a decision{% endblock %}
+
+{% block header_actions %}
+  <a class="btn btn--sm btn--ghost" href="/admin/music/trackcomment/" target="_blank" rel="noopener">Full admin →</a>
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+
+  <nav class="tabs" aria-label="Comment filters">
+    <a class="tabs__tab {% if scope == 'queue' %}is-active{% endif %}"
+       href="?filter=queue&amp;order={{ ordering }}&amp;q={{ search|urlencode }}">Needs review
+      <span class="tabs__count">{{ counts.queue }}</span></a>
+    <a class="tabs__tab {% if scope == 'pending' %}is-active{% endif %}"
+       href="?filter=pending&amp;order={{ ordering }}&amp;q={{ search|urlencode }}">Pending
+      <span class="tabs__count">{{ counts.pending }}</span></a>
+    <a class="tabs__tab {% if scope == 'flagged' %}is-active{% endif %}"
+       href="?filter=flagged&amp;order={{ ordering }}&amp;q={{ search|urlencode }}">Flagged
+      <span class="tabs__count">{{ counts.flagged }}</span></a>
+    <a class="tabs__tab {% if scope == 'all' %}is-active{% endif %}"
+       href="?filter=all&amp;order={{ ordering }}&amp;q={{ search|urlencode }}">All
+      <span class="tabs__count">{{ counts.total }}</span></a>
+    <span class="spacer"></span>
+    <span class="muted text-xs">{{ counts.visible }} live · {{ counts.hidden }} hidden</span>
+  </nav>
+
+  <section class="panel">
+    <form class="toolbar" method="get">
+      <input type="hidden" name="filter" value="{{ scope }}">
+      <input type="hidden" name="order" value="{{ ordering }}">
+      <input class="search-input" type="search" name="q" value="{{ search }}"
+             placeholder="Search comments, authors or tracks…" aria-label="Search comments">
+      <button class="btn btn--sm" type="submit">Search</button>
+      {% if search %}<a class="btn btn--sm btn--ghost" href="?filter={{ scope }}">Clear</a>{% endif %}
+      <span class="spacer"></span>
+      <label class="sr-only" for="mod-order">Sort</label>
+      <select class="select-input" id="mod-order" name="order"
+              onchange="this.form.submit()">
+        <option value="" {% if not ordering %}selected{% endif %}>Newest first</option>
+        <option value="oldest" {% if ordering == 'oldest' %}selected{% endif %}>Oldest first</option>
+        <option value="track" {% if ordering == 'track' %}selected{% endif %}>By track</option>
+      </select>
+    </form>
+
+    <div class="panel__body panel__body--flush">
+      <div class="table-wrap">
+        <form method="post" action="{% url 'dashboard:moderation-action' %}" id="mod-form">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+          <table class="data">
+            <thead>
+              <tr>
+                <th class="cell-check">
+                  <input type="checkbox" id="mod-select-all" aria-label="Select all comments on this page">
+                </th>
+                <th>Comment</th>
+                <th>Track</th>
+                <th>Status</th>
+                <th class="num">Replies</th>
+                <th>Posted</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for comment in comments %}
+                <tr>
+                  <td class="cell-check">
+                    <input type="checkbox" name="comment_ids" value="{{ comment.pk }}"
+                           class="mod-check" aria-label="Select comment by {{ comment.user.email }}">
+                  </td>
+                  <td>
+                    <div class="comment-body">{{ comment.body }}</div>
+                    <div class="comment-meta">
+                      <span class="text-xs dim">{{ comment.user.display_name|default:comment.user.email }}</span>
+                      {% if comment.parent_id %}
+                        <span class="chip chip--cyan">reply</span>
+                      {% endif %}
+                      {% if comment.is_pinned %}<span class="chip chip--lime">pinned</span>{% endif %}
+                      {% if comment.is_flagged %}<span class="chip chip--rose">flagged</span>{% endif %}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="media-cell__title text-sm">{{ comment.track.title }}</div>
+                    <div class="media-cell__sub">{{ comment.track.artist.name }}</div>
+                  </td>
+                  <td><span class="chip chip--{{ comment.status }}">{{ comment.get_status_display }}</span></td>
+                  <td class="num">{{ comment.replies.count }}</td>
+                  <td class="dim text-xs">{{ comment.created_at|naturaltime }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="6" class="empty">
+                    {% if search %}No comments match “{{ search }}”.{% else %}Nothing in this queue.{% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  {% if comments %}
+    <div class="bulkbar" id="bulkbar">
+      <span class="bulkbar__count"><span id="bulk-selected">0</span> selected</span>
+      <span class="spacer"></span>
+      {% for action, label in actions %}
+        <button class="btn btn--sm {% if action == 'approve' %}btn--primary{% else %}btn--ghost{% endif %}"
+                type="submit" name="action" value="{{ action }}" form="mod-form">{{ label }}</button>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if is_paginated %}
+    <nav class="pager" aria-label="Pagination">
+      {% if page_obj.has_previous %}
+        <a class="pager__page" href="?filter={{ scope }}&amp;order={{ ordering }}&amp;q={{ search|urlencode }}&amp;page={{ page_obj.previous_page_number }}">← Prev</a>
+      {% endif %}
+      {% for number in page_range %}
+        {% if number == page_obj.number %}
+          <span class="pager__page is-active" aria-current="page">{{ number }}</span>
+        {% else %}
+          <a class="pager__page" href="?filter={{ scope }}&amp;order={{ ordering }}&amp;q={{ search|urlencode }}&amp;page={{ number }}">{{ number }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+        <a class="pager__page" href="?filter={{ scope }}&amp;order={{ ordering }}&amp;q={{ search|urlencode }}&amp;page={{ page_obj.next_page_number }}">Next →</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var selectAll = document.getElementById("mod-select-all");
+    var bar = document.getElementById("bulkbar");
+    var counter = document.getElementById("bulk-selected");
+    if (!selectAll || !bar) return;
+
+    var checks = Array.prototype.slice.call(document.querySelectorAll(".mod-check"));
+
+    function sync() {
+      var chosen = checks.filter(function (box) { return box.checked; });
+      counter.textContent = String(chosen.length);
+      bar.classList.toggle("is-active", chosen.length > 0);
+      selectAll.checked = chosen.length > 0 && chosen.length === checks.length;
+      selectAll.indeterminate = chosen.length > 0 && chosen.length < checks.length;
+    }
+
+    selectAll.addEventListener("change", function () {
+      checks.forEach(function (box) { box.checked = selectAll.checked; });
+      sync();
+    });
+    checks.forEach(function (box) { box.addEventListener("change", sync); });
+    sync();
+  })();
+</script>
+{% endblock %}

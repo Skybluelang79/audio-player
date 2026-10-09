@@ -1,0 +1,24 @@
+{% comment %}
+Renders a stat tile.
+  value   — primary number or short string
+  label   — uppercase caption
+  foot    — small supporting line
+  accent  — CSS colour used for the glow
+  delta   — optional signed percentage for the trend chip
+{% endcomment %}
+<div class="stat" style="--accent: {{ accent|default:'#00e5ff' }}">
+  <div class="stat__label">{{ label }}</div>
+  <div class="stat__value">{{ value }}</div>
+  <div class="stat__foot">
+    {% if delta is not None %}
+      {% if delta > 0 %}
+        <span class="delta delta--up">▲ {{ delta }}%</span>
+      {% elif delta < 0 %}
+        <span class="delta delta--down">▼ {{ delta|floatformat:"-1" }}%</span>
+      {% else %}
+        <span class="delta delta--flat">— 0%</span>
+      {% endif %}
+    {% endif %}
+    <span class="muted text-xs">{{ foot }}</span>
+  </div>
+</div>

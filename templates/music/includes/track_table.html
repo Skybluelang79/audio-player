@@ -1,0 +1,78 @@
+{% comment %}
+Track listing used by every shelf. Each row carries data-track-* attributes;
+static/js/player.js scrapes them to build the queue, so any table rendered with
+this include is playable as-is.
+
+Usage:
+  {% include "music/includes/track_table.html" with tracks=tracks show_album=True show_cover=True %}
+  {% include "music/includes/track_table.html" with tracks=entries show_number=True %}
+{% endcomment %}
+{% load humanize %}
+<div class="table-wrap">
+  <table class="data data--tracks">
+    <thead>
+      <tr>
+        <th class="col-play" scope="col"><span class="sr-only">Play</span></th>
+        {% if show_number %}<th class="col-num" scope="col">#</th>{% endif %}
+        {% if show_cover %}<th class="col-art" scope="col"><span class="sr-only">Artwork</span></th>{% endif %}
+        <th scope="col">Title</th>
+        {% if show_album %}<th class="col-album" scope="col">Album</th>{% endif %}
+        <th class="num col-plays" scope="col">Plays</th>
+        <th class="num col-time" scope="col">Time</th>
+        <th class="col-actions" scope="col"><span class="sr-only">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for track in tracks %}
+        <tr data-track-id="{{ track.id }}"
+            data-track-title="{{ track.title }}"
+            data-track-artist="{{ track.artist.name }}"
+            data-track-artist-slug="{{ track.artist.slug }}"
+            data-track-url="{% url 'music:track-detail' track.slug %}"
+            data-track-duration="{{ track.duration_seconds }}"
+            {% if track.cover_image %}data-track-cover="{{ track.cover_image.url }}"{% endif %}>
+          <td class="col-play">
+            <button class="row-play" type="button"
+                    data-play="{{ track.id }}"
+                    aria-label="Play {{ track.title }} by {{ track.artist.name }}">
+              <span class="row-play__icon" aria-hidden="true">▶</span>
+            </button>
+          </td>
+          {% if show_number %}<td class="col-num mono dim">{{ forloop.counter }}</td>{% endif %}
+          {% if show_cover %}
+            <td class="col-art">
+              {% if track.cover_image %}
+                <img class="art" src="{{ track.cover_image.url }}" alt="" loading="lazy" width="40" height="40">
+              {% else %}
+                <span class="art art--placeholder" aria-hidden="true">♫</span>
+              {% endif %}
+            </td>
+          {% endif %}
+          <td class="col-title">
+            <a class="track-title" href="{% url 'music:track-detail' track.slug %}">{{ track.title }}</a>
+            <a class="track-sub" href="{% url 'music:artist-detail' track.artist.slug %}">{{ track.artist.name }}</a>
+          </td>
+          {% if show_album %}
+            <td class="col-album">
+              {% if track.album %}
+                <a class="track-sub" href="{% url 'music:album-detail' track.album.slug %}">{{ track.album.title }}</a>
+              {% else %}
+                <span class="dim">—</span>
+              {% endif %}
+            </td>
+          {% endif %}
+          <td class="num col-plays">{{ track.play_count|intcomma }}</td>
+          <td class="num col-time mono dim">{{ track.duration_display }}</td>
+          <td class="col-actions">
+            {% if user.is_authenticated %}
+              <button class="icon-btn icon-btn--ghost" type="button"
+                      data-favorite="{{ track.id }}" aria-label="Favourite {{ track.title }}">♥</button>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8" class="empty">Nothing here yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,139 @@
+{% extends "dashboard/base.html" %}
+{% load humanize %}
+
+{% block title %}Catalogue · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}Catalogue{% endblock %}
+{% block page_meta %}{{ artists|length }} artists · {{ albums|length }} albums shown{% endblock %}
+
+{% block header_actions %}
+  <a class="btn btn--sm btn--primary" href="{% url 'dashboard:upload' %}">＋ Upload track</a>
+{% endblock %}
+
+{% block content %}
+
+  <div class="stats">
+    {% for status, count in status_counts.items %}
+      {% include "dashboard/includes/stat_tile.html" with label=status|slugify|capfirst value=count accent="#00e5ff" foot="tracks" %}
+    {% empty %}
+      {% include "dashboard/includes/stat_tile.html" with label="Tracks" value=0 accent="#00e5ff" foot="none yet" %}
+    {% endfor %}
+  </div>
+
+  <section class="panel" style="margin-bottom:16px">
+    <div class="panel__head">
+      <div class="panel__title">Artists</div>
+      <a class="btn btn--sm btn--ghost" href="/admin/music/artist/" target="_blank" rel="noopener">Manage →</a>
+    </div>
+    <div class="panel__body panel__body--flush">
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Artist</th><th>Country</th>
+              <th class="num">Tracks</th><th class="num">Albums</th><th class="num">Listeners</th><th>Verified</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for artist in artists %}
+              <tr>
+                <td>
+                  <div class="media-cell">
+                    {% if artist.image %}
+                      <img class="art" src="{{ artist.image.url }}" alt="" loading="lazy">
+                    {% else %}
+                      <span class="art art--placeholder" aria-hidden="true">◈</span>
+                    {% endif %}
+                    <div class="media-cell__text">
+                      <div class="media-cell__title">{{ artist.name }}</div>
+                      <div class="media-cell__sub">/{{ artist.slug }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="dim">{{ artist.country|default:"—" }}</td>
+                <td class="num">{{ artist.track_count }}</td>
+                <td class="num dim">{{ artist.album_count }}</td>
+                <td class="num">{{ artist.monthly_listeners|intcomma }}</td>
+                <td>{% if artist.verified %}<span class="chip chip--cyan">Verified</span>{% else %}<span class="muted text-xs">—</span>{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="empty">No artists yet. <a href="{% url 'dashboard:upload' %}">Upload a track</a> to create one.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid grid--2">
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Albums</div>
+        <a class="btn btn--sm btn--ghost" href="/admin/music/album/" target="_blank" rel="noopener">Manage →</a>
+      </div>
+      <div class="panel__body panel__body--flush">
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th>Album</th><th>Type</th><th class="num">Tracks</th><th>Released</th></tr>
+            </thead>
+            <tbody>
+              {% for album in albums %}
+                <tr>
+                  <td>
+                    <div class="media-cell">
+                      {% if album.cover_image %}
+                        <img class="art" src="{{ album.cover_image.url }}" alt="" loading="lazy">
+                      {% else %}
+                        <span class="art art--placeholder" aria-hidden="true">▣</span>
+                      {% endif %}
+                      <div class="media-cell__text">
+                        <div class="media-cell__title">{{ album.title }}</div>
+                        <div class="media-cell__sub">{{ album.artist.name }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="chip">{{ album.get_album_type_display }}</span></td>
+                  <td class="num">{{ album.track_count }}</td>
+                  <td class="dim text-sm">{{ album.release_date|default:"TBA" }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4" class="empty">No albums yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Genres</div>
+        <a class="btn btn--sm btn--ghost" href="/admin/music/genre/" target="_blank" rel="noopener">Manage →</a>
+      </div>
+      <div class="panel__body panel__body--flush">
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>Genre</th><th>Slug</th><th class="num">Tracks</th></tr></thead>
+            <tbody>
+              {% for genre in genres %}
+                <tr>
+                  <td>
+                    <span class="row" style="gap:9px">
+                      <span style="width:10px;height:10px;border-radius:3px;background:{{ genre.color }};box-shadow:0 0 10px -1px {{ genre.color }}"></span>
+                      <span class="strong">{{ genre.name }}</span>
+                    </span>
+                  </td>
+                  <td class="dim mono text-xs">{{ genre.slug }}</td>
+                  <td class="num">{{ genre.track_count }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3" class="empty">No genres defined.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+{% endblock %}

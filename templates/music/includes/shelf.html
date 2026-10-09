@@ -1,0 +1,10 @@
+{% comment %}Horizontal shelf of track rows. Usage: {% include "music/includes/shelf.html" with title="Trending" tracks=trending %} {% endcomment %}
+<section class="shelf">
+  <div class="shelf__head">
+    <h2 class="shelf__title">{% block shelf_title %}{{ title }}{% endblock %}</h2>
+    {% if href %}<a class="shelf__more" href="{{ href }}">See all →</a>{% endif %}
+  </div>
+  {% block shelf_body %}
+    {% include "music/includes/track_table.html" with tracks=tracks show_cover=show_cover|default:True %}
+  {% endblock %}
+</section>

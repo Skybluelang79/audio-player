@@ -1,0 +1,11 @@
+{% extends "403.html" %}
+
+{% block title %}Page not found{% endblock %}
+{% block heading %}Signal lost{% endblock %}
+{% block message %}That page does not exist, or the resource has been removed from the catalogue.{% endblock %}
+{% block content %}
+  <div class="stack" style="gap:10px">
+    <a class="btn btn--primary btn--block" href="{% url 'dashboard:index' %}">Back to control deck</a>
+    <a class="btn btn--ghost btn--block" href="/api/docs/">Browse the API</a>
+  </div>
+{% endblock %}

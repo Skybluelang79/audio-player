@@ -1,0 +1,91 @@
+# Render blueprint: https://render.com/docs/blueprint-spec
+#
+# Creates a Postgres database plus a web service. Media (uploaded audio and
+# artwork) lives on a mounted disk -- Render's container filesystem is wiped on
+# every deploy, so without `disk:` every upload is lost on the next release.
+#
+# NOTE: this blueprint does not set MEDIA_ROOT, because MEDIA_ROOT must be an
+# absolute path matching the mount path. See the note in `render.yaml` below.
+
+databases:
+  - name: auralis-db
+    databaseName: auralis
+    user: auralis
+    plan: basic-256mb
+    postgresMajorVersion: "17"
+
+services:
+  - type: web
+    name: auralis
+    runtime: python
+    plan: starter
+    region: oregon
+    branch: main
+
+    buildCommand: >-
+      pip install --no-cache-dir -r requirements.txt &&
+      python manage.py collectstatic --noinput
+    startCommand: >-
+      python manage.py migrate --noinput &&
+      gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+
+    # Uploaded audio can be large and slow to read from Postgres-backed storage,
+    # hence the raised timeout in startCommand.
+    autoDeployTrigger: commit
+    healthCheckPath: /healthz/
+
+    disk:
+      name: auralis-media
+      mountPath: /var/media
+      sizeGB: 10
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.7"
+
+      - key: DEBUG
+        value: "False"
+
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings
+
+      # Render terminates TLS at its edge proxy and forwards X-Forwarded-Proto,
+      # which settings.py already trusts via SECURE_PROXY_SSL_HEADER.
+      - key: SECURE_SSL_REDIRECT
+        value: "True"
+
+      - key: SECURE_HSTS_SECONDS
+        value: "31536000"
+
+      - key: ALLOWED_HOSTS
+        # Render injects the on-host hostname automatically; this covers the
+        # public domain. Add your own custom domain here if you add one.
+        sync: false
+
+      - key: SECRET_KEY
+        generateValue: true
+
+      # Required: do not use the SQLite fallback in production -- Render's
+      # filesystem is ephemeral, so the database would reset on every deploy.
+      - key: DB_ENGINE
+        value: postgres
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: auralis-db
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: auralis-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: auralis-db
+          property: password
+
+      - key: MEDIA_ROOT
+        value: /var/media
+
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false

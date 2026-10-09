@@ -1,0 +1,107 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#05060a">
+  <title>{% block title %}{{ page_title|default:"Control Deck" }} · {{ SITE_NAME }}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2300e5ff'/><path d='M9 20V12h3v5h3v-8h3v11h3v-6h2v6z' fill='%2305060a'/></svg>">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="app">
+
+    <div class="brand">
+      <div class="brand__mark" aria-hidden="true"></div>
+      <div>
+        <div class="brand__name">{{ SITE_NAME }}</div>
+        <span class="brand__sub">{{ SITE_TAGLINE }}</span>
+      </div>
+    </div>
+
+    <header class="header">
+      <div>
+        <div class="header__title">{% block page_title %}Control Deck{% endblock %}</div>
+        <div class="header__meta">{% block page_meta %}{% now "Y-m-d H:i" %} UTC{% endblock %}</div>
+      </div>
+      <div class="header__actions">
+        {% block header_actions %}{% endblock %}
+        <a class="btn btn--sm btn--ghost" href="/api/docs/" target="_blank" rel="noopener">API</a>
+        <a class="btn btn--sm btn--ghost" href="/admin/" target="_blank" rel="noopener">Admin</a>
+        <div class="row" style="gap:9px">
+          <div class="avatar" title="{{ user.full_name }}">{{ user.initials }}</div>
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="btn btn--sm" type="submit">Sign out</button>
+          </form>
+        </div>
+      </div>
+    </header>
+
+    <nav class="nav" aria-label="Dashboard sections">
+      <div class="nav__label">Telemetry</div>
+      <a class="nav__item {% if active_nav == 'overview' %}is-active{% endif %}" href="{% url 'dashboard:index' %}">
+        <span class="nav__icon" aria-hidden="true">◈</span> Overview
+      </a>
+      <a class="nav__item {% if active_nav == 'audience' %}is-active{% endif %}" href="{% url 'dashboard:audience' %}">
+        <span class="nav__icon" aria-hidden="true">◐</span> Audience
+      </a>
+
+      <div class="nav__label">Library</div>
+      <a class="nav__item {% if active_nav == 'catalogue' %}is-active{% endif %}" href="{% url 'dashboard:catalogue' %}">
+        <span class="nav__icon" aria-hidden="true">▤</span> Catalogue
+      </a>
+      <a class="nav__item {% if active_nav == 'bulk' %}is-active{% endif %}" href="{% url 'dashboard:bulk' %}">
+        <span class="nav__icon" aria-hidden="true">⊞</span> Bulk edit
+      </a>
+      <a class="nav__item {% if active_nav == 'upload' %}is-active{% endif %}" href="{% url 'dashboard:upload' %}">
+        <span class="nav__icon" aria-hidden="true">⇪</span> Quick upload
+      </a>
+      <a class="nav__item" href="/admin/music/track/" target="_blank" rel="noopener">
+        <span class="nav__icon" aria-hidden="true">♫</span> All tracks
+      </a>
+      <a class="nav__item" href="/admin/music/artist/" target="_blank" rel="noopener">
+        <span class="nav__icon" aria-hidden="true">☰</span> All artists
+      </a>
+      <a class="nav__item" href="/admin/music/album/" target="_blank" rel="noopener">
+        <span class="nav__icon" aria-hidden="true">▣</span> All albums
+      </a>
+      <a class="nav__item" href="/admin/playlists/playlist/" target="_blank" rel="noopener">
+        <span class="nav__icon" aria-hidden="true">≣</span> All playlists
+      </a>
+
+      <div class="nav__spacer"></div>
+
+      <div class="nav__label">Operations</div>
+      <a class="nav__item {% if active_nav == 'moderation' %}is-active{% endif %}" href="{% url 'dashboard:moderation' %}">
+        <span class="nav__icon" aria-hidden="true">✦</span> Moderation
+      </a>
+      <a class="nav__item" href="/admin/analytics/playevent/" target="_blank" rel="noopener">
+        <span class="nav__icon" aria-hidden="true">⟲</span> Play log
+      </a>
+      <a class="nav__item" href="/admin/accounts/user/" target="_blank" rel="noopener">
+        <span class="nav__icon" aria-hidden="true">◉</span> Accounts
+      </a>
+    </nav>
+
+    <main class="main" id="main">
+      {% if messages %}
+        <ul class="messages">
+          {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+
+  <script src="{% static 'js/chart.min.js' %}"></script>
+  <script src="{% static 'js/dashboard.js' %}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,79 @@
+{% extends "site_base.html" %}
+{% load humanize %}
+
+{% block title %}{{ artist.name }} · {{ SITE_NAME }}{% endblock %}
+{% block head %}<meta name="description" content="{{ artist.name }} — {{ artist.monthly_listeners|intcomma }} monthly listeners.">{% endblock %}
+
+{% block content %}
+<article class="detail">
+  <header class="detail__hero">
+    <div class="detail__art detail__art--round">
+      {% if artist.image %}
+        <img src="{{ artist.image.url }}" alt="Photo of {{ artist.name }}">
+      {% else %}
+        <span class="art art--placeholder art--xl" aria-hidden="true">{{ artist.name|first|upper }}</span>
+      {% endif %}
+    </div>
+    <div class="detail__body">
+      <span class="chip chip--violet">{% if artist.verified %}Verified artist{% else %}Artist{% endif %}</span>
+      <h1 class="detail__title">{{ artist.name }}</h1>
+      <p class="detail__meta mono">
+        {{ artist.monthly_listeners|intcomma }} monthly listeners · {{ total_plays|intcomma }} plays
+        {% if artist.country %} · {{ artist.country }}{% endif %}
+      </p>
+
+      <div class="detail__chips">
+        {% for genre in genres %}
+          <a class="chip" href="{% url 'music:genre-detail' genre.slug %}">{{ genre.name }}</a>
+        {% endfor %}
+      </div>
+
+      <div class="detail__actions">
+        {% if top_tracks %}
+          <button class="btn btn--primary" type="button"
+                  data-play-artist="{{ artist.slug }}"
+                  data-track-id="{{ top_tracks.0.id }}"
+                  data-track-title="{{ top_tracks.0.title }}"
+                  data-track-artist="{{ artist.name }}"
+                  data-track-artist-slug="{{ artist.slug }}"
+                  data-track-url="{% url 'music:track-detail' top_tracks.0.slug %}"
+                  data-track-duration="{{ top_tracks.0.duration_seconds }}"
+                  {% if top_tracks.0.cover_image %}data-track-cover="{{ top_tracks.0.cover_image.url }}"{% endif %}
+                  data-play="{{ top_tracks.0.id }}">
+            ▶ Play
+          </button>
+        {% endif %}
+        {% if user.is_authenticated %}
+          <button class="btn btn--ghost" type="button" data-follow-artist="{{ artist.id }}"
+                  aria-pressed="{% if is_following %}true{% else %}false{% endif %}">
+            <span data-follow-label>{% if is_following %}Following{% else %}Follow{% endif %}</span>
+          </button>
+        {% endif %}
+        {% if artist.website %}<a class="btn btn--ghost" href="{{ artist.website }}" target="_blank" rel="noopener nofollow">Website</a>{% endif %}
+      </div>
+
+      {% if artist.bio %}<p class="detail__bio">{{ artist.bio|linebreaksbr }}</p>{% endif %}
+    </div>
+  </header>
+
+  {% if top_tracks %}
+    <section class="shelf">
+      <div class="shelf__head"><h2 class="shelf__title">Popular</h2></div>
+      {% include "music/includes/track_table.html" with tracks=top_tracks show_number=True show_album=True %}
+    </section>
+  {% endif %}
+
+  {% if albums %}
+    {% include "music/includes/card_grid.html" with items=albums kind="album" title="Releases" %}
+  {% endif %}
+
+  {% if tracks %}
+    <section class="shelf">
+      <div class="shelf__head"><h2 class="shelf__title">All tracks</h2></div>
+      {% include "music/includes/track_table.html" with tracks=tracks show_album=True %}
+    </section>
+  {% else %}
+    <p class="empty">This artist has no published tracks yet.</p>
+  {% endif %}
+</article>
+{% endblock %}

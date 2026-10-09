@@ -1,0 +1,52 @@
+{% comment %}Cover-art grid for albums / playlists / artists. {% include "music/includes/card_grid.html" with items=albums kind="album" title="Albums" %} {% endcomment %}
+{% load humanize %}
+<section class="shelf">
+  <div class="shelf__head">
+    <h2 class="shelf__title">{{ title }}</h2>
+    {% if href %}<a class="shelf__more" href="{{ href }}">See all →</a>{% endif %}
+  </div>
+  <ul class="cards">
+    {% for item in items %}
+      <li class="card">
+        <a class="card__link" href="{% if kind == 'album' %}{% url 'music:album-detail' item.slug %}{% elif kind == 'artist' %}{% url 'music:artist-detail' item.slug %}{% elif kind == 'genre' %}{% url 'music:genre-detail' item.slug %}{% elif kind == 'playlist' %}{% url 'playlists:detail' item.slug %}{% else %}#{% endif %}">
+          <span class="card__art">
+            {% if kind == 'artist' %}
+              {% if item.image %}
+                <img src="{{ item.image.url }}" alt="" loading="lazy">
+              {% else %}
+                <span class="art art--placeholder" aria-hidden="true">{{ item.name|first|upper }}</span>
+              {% endif %}
+            {% else %}
+              {% if item.cover_image %}
+                <img src="{{ item.cover_image.url }}" alt="" loading="lazy">
+              {% else %}
+                <span class="art art--placeholder" aria-hidden="true">
+                  {% if kind == 'playlist' %}≣{% elif kind == 'genre' %}◈{% else %}♫{% endif %}
+                </span>
+              {% endif %}
+            {% endif %}
+          </span>
+          <span class="card__title">{% firstof item.title item.name %}</span>
+          <span class="card__sub">
+            {% if kind == 'album' %}
+              {{ item.artist.name }}{% if item.release_date %} · {{ item.release_date|date:"Y" }}{% endif %}
+            {% elif kind == 'artist' %}
+              {% if item.country %}{{ item.country }} · {% endif %}{{ item.monthly_listeners|intcomma }} listeners
+            {% elif kind == 'genre' %}
+              {{ item.agg_track_count|default:item.track_count }} tracks
+            {% elif kind == 'playlist' %}
+              {{ item.owner.display_name }} · {{ item.entry_count|default:item.track_count }} tracks
+            {% else %}{{ item.track_count }} tracks{% endif %}
+          </span>
+        </a>
+        {% if kind == 'album' or kind == 'playlist' %}
+          <button class="card__play" type="button" data-play-album="{{ item.slug }}"
+                  data-play-kind="{{ kind }}"
+                  aria-label="Play {% firstof item.title item.name %}">▶</button>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li class="empty">Nothing here yet.</li>
+    {% endfor %}
+  </ul>
+</section>

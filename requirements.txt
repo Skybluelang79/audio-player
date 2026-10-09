@@ -1,0 +1,24 @@
+# Runtime dependencies.
+#
+# Direct dependencies only, pinned to the versions this project was built and
+# tested against. Transitive deps (asgiref, sqlparse, PyJWT, ...) resolve
+# themselves; listing them here just makes a broken resolver harder to spot.
+
+Django==5.2.17
+djangorestframework==3.18.1
+djangorestframework_simplejwt==5.5.1
+django-filter==26.1
+django-cors-headers==4.9.0
+django-environ==0.14.0
+drf-spectacular==0.30.0
+psycopg[binary]==3.3.6
+pillow==12.3.0
+
+# Whitenoise serves collected static files from the app process, so a deploy
+# does not need a separate web server in front of it. Required whenever
+# DEBUG is off, because Django's static() helper is then a no-op.
+whitenoise==6.12.0
+
+# WSGI server for production. Render/Railway/Fly start a container, not
+# `runserver`, which is development-only and refuses to serve under it.
+gunicorn==23.0.0

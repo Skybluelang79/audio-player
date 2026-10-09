@@ -1,0 +1,56 @@
+{% extends "site_base.html" %}
+{% load humanize %}
+
+{% block title %}{% if query %}“{{ query }}”{% else %}Search{% endif %} · {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<article class="detail">
+  <header class="detail__hero detail__hero--slim">
+    <div class="detail__body">
+      <span class="chip chip--cyan">Search</span>
+      {% if query %}
+        <h1 class="detail__title">{{ total }} result{{ total|pluralize }} for “{{ query }}”</h1>
+      {% else %}
+        <h1 class="detail__title">Search the catalogue</h1>
+        <p class="detail__bio">Type at least {{ min_length }} characters to search tracks, artists, albums, genres and playlists.</p>
+      {% endif %}
+    </div>
+  </header>
+
+  {% if too_short %}
+    <p class="empty">Keep typing — searches need {{ min_length }} or more characters.</p>
+  {% elif query %}
+    {% if results.tracks %}
+      <section class="shelf">
+        <div class="shelf__head"><h2 class="shelf__title">Tracks</h2><span class="shelf__more mono">{{ results.tracks|length }}</span></div>
+        {% include "music/includes/track_table.html" with tracks=results.tracks show_album=True %}
+      </section>
+    {% endif %}
+
+    {% if results.artists %}
+      {% include "music/includes/card_grid.html" with items=results.artists kind="artist" title="Artists" %}
+    {% endif %}
+
+    {% if results.albums %}
+      {% include "music/includes/card_grid.html" with items=results.albums kind="album" title="Albums" %}
+    {% endif %}
+
+    {% if results.playlists %}
+      {% include "music/includes/card_grid.html" with items=results.playlists kind="playlist" title="Playlists" %}
+    {% endif %}
+
+    {% if results.genres %}
+      <section class="shelf">
+        <div class="shelf__head"><h2 class="shelf__title">Genres</h2></div>
+        <ul class="chips-row">
+          {% for genre in results.genres %}
+            <li><a class="chip chip--lg" href="{% url 'music:genre-detail' genre.slug %}" style="--accent: {{ genre.color }}">{{ genre.name }}</a></li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
+    {% if not total %}<p class="empty">Nothing matched “{{ query }}”.</p>{% endif %}
+  {% endif %}
+</article>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "site_base.html" %}
+{% load humanize %}
+
+{% block title %}{{ SITE_NAME }} · stream anything{% endblock %}
+{% block head %}<meta name="description" content="Stream tracks, albums and playlists on {{ SITE_NAME }}.">{% endblock %}
+
+{% block content %}
+  {% for track in hero %}
+    <section class="hero">
+      <div class="hero__art">
+        {% if track.cover_image %}
+          <img src="{{ track.cover_image.url }}" alt="Cover art for {{ track.title }}">
+        {% elif track.album.cover_image %}
+          <img src="{{ track.album.cover_image.url }}" alt="Cover art for {{ track.album.title }}">
+        {% else %}
+          <span class="art art--placeholder art--xl" aria-hidden="true">♫</span>
+        {% endif %}
+      </div>
+      <div class="hero__body">
+        <span class="chip chip--cyan">Featured</span>
+        <h1 class="hero__title">{{ track.title }}</h1>
+        <p class="hero__artist">
+          <a href="{% url 'music:artist-detail' track.artist.slug %}">{{ track.artist.name }}</a>
+          {% if track.album %} · <a href="{% url 'music:album-detail' track.album.slug %}">{{ track.album.title }}</a>{% endif %}
+        </p>
+        <p class="hero__stats mono">
+          {{ track.play_count|intcomma }} plays · {{ track.duration_display }}
+          {% if track.release_date %} · {{ track.release_date|date:"Y" }}{% endif %}
+        </p>
+        <div class="hero__actions">
+          <button class="btn btn--primary" type="button"
+                  data-track-id="{{ track.id }}"
+                  data-track-title="{{ track.title }}"
+                  data-track-artist="{{ track.artist.name }}"
+                  data-track-artist-slug="{{ track.artist.slug }}"
+                  data-track-url="{% url 'music:track-detail' track.slug %}"
+                  data-track-duration="{{ track.duration_seconds }}"
+                  {% if track.cover_image %}data-track-cover="{{ track.cover_image.url }}"{% endif %}
+                  data-play="{{ track.id }}">
+            ▶ Play
+          </button>
+          <a class="btn btn--ghost" href="{% url 'music:track-detail' track.slug %}">Track details</a>
+        </div>
+      </div>
+    </section>
+  {% endfor %}
+
+  {% include "music/includes/shelf.html" with title="Trending now" tracks=trending %}
+  {% include "music/includes/shelf.html" with title="Most played" tracks=popular show_cover=False %}
+
+  <section class="shelf" id="genres">
+    <div class="shelf__head">
+      <h2 class="shelf__title">Browse by genre</h2>
+    </div>
+    <ul class="chips-row">
+      {% for genre in genres %}
+        <li>
+          <a class="chip chip--lg" href="{% url 'music:genre-detail' genre.slug %}"
+             style="--accent: {{ genre.color }}">
+            {{ genre.name }}
+            <span class="chip__count">{{ genre.agg_track_count }}</span>
+          </a>
+        </li>
+      {% empty %}
+        <li class="empty">No genres defined yet.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <div class="split">
+    {% include "music/includes/card_grid.html" with items=artists kind="artist" title="Top artists" %}
+    {% include "music/includes/card_grid.html" with items=albums kind="album" title="Latest albums" %}
+  </div>
+
+  {% include "music/includes/shelf.html" with title="Recently released" tracks=recent show_album=True %}
+  {% include "music/includes/card_grid.html" with items=playlists kind="playlist" title="Popular playlists" href="/playlists/" %}
+  {% include "music/includes/card_grid.html" with items=trending_playlists kind="playlist" title="Trending playlists" %}
+
+{% endblock %}

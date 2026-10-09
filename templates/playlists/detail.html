@@ -1,0 +1,69 @@
+{% extends "site_base.html" %}
+{% load humanize %}
+
+{% block title %}{{ playlist.name }} · {{ SITE_NAME }}{% endblock %}
+{% block head %}<meta name="description" content="{{ playlist.name }} — a playlist by {{ playlist.owner.display_name }}.">{% endblock %}
+
+{% block content %}
+<article class="detail">
+  <header class="detail__hero">
+    <div class="detail__art">
+      {% if playlist.cover_image %}
+        <img src="{{ playlist.cover_image.url }}" alt="Cover art for {{ playlist.name }}">
+      {% else %}
+        <span class="art art--placeholder art--xl" aria-hidden="true">≣</span>
+      {% endif %}
+    </div>
+    <div class="detail__body">
+      <span class="chip chip--magenta">Playlist</span>
+      <h1 class="detail__title">{{ playlist.name }}</h1>
+      <p class="detail__subtitle">{{ playlist.owner.display_name }}</p>
+      <p class="detail__meta mono">
+        {{ tracks|length }} tracks · {{ duration_display }}
+        {% if playlist.total_plays %}· {{ playlist.total_plays|intcomma }} plays{% endif %}
+        {% if follower_count %}· {{ follower_count }} follower{{ follower_count|pluralize }}{% endif %}
+      </p>
+      {% if playlist.description %}<p class="detail__bio">{{ playlist.description|linebreaksbr }}</p>{% endif %}
+
+      <div class="detail__actions">
+        {% if tracks %}
+            <button class="btn btn--primary" type="button" data-play-album="{{ playlist.slug }}"
+                  data-track-id="{{ tracks.0.id }}"
+                  data-track-title="{{ tracks.0.title }}"
+                  data-track-artist="{{ tracks.0.artist.name }}"
+                  data-track-artist-slug="{{ tracks.0.artist.slug }}"
+                  data-track-url="{% url 'music:track-detail' tracks.0.slug %}"
+                  data-track-duration="{{ tracks.0.duration_seconds }}"
+                  {% if tracks.0.cover_image %}data-track-cover="{{ tracks.0.cover_image.url }}"{% endif %}
+                  data-play="{{ tracks.0.id }}">
+            ▶ Play
+          </button>
+          {% if user.is_authenticated %}
+            <button class="btn btn--ghost" type="button" data-follow-playlist="{{ playlist.id }}"
+                    aria-pressed="{% if is_following %}true{% else %}false{% endif %}">
+              <span data-follow-label>{% if is_following %}Following{% else %}Follow{% endif %}</span>
+            </button>
+          {% endif %}
+        {% endif %}
+        {% if can_edit %}<span class="chip chip--lime">You can edit this</span>{% endif %}
+      </div>
+    </div>
+  </header>
+
+  {% if hidden_count %}
+    <p class="notice">{{ hidden_count }} unpublished track{{ hidden_count|pluralize }} {{ hidden_count|pluralize:"is,are" }} hidden.</p>
+  {% endif %}
+
+  <section class="shelf">
+    <div class="shelf__head">
+      <h2 class="shelf__title">Tracks</h2>
+      {% if playlist.visibility != 'public' %}<span class="chip">{{ playlist.get_visibility_display }}</span>{% endif %}
+    </div>
+    {% comment %}
+      `tracks` is already in playlist-position order (the view walks
+      playlist_tracks), so forloop.counter lines up with the stored position.
+    {% endcomment %}
+    {% include "music/includes/track_table.html" with tracks=tracks show_number=True show_album=True show_cover=False %}
+  </section>
+</article>
+{% endblock %}

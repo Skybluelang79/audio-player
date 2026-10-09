@@ -1,0 +1,57 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="robots" content="noindex">
+  <title>Sign in · {{ SITE_NAME }}</title>
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2300e5ff'/><path d='M9 20V12h3v5h3v-8h3v11h3v-6h2v6z' fill='%2305060a'/></svg>">
+</head>
+<body>
+  <div class="auth-shell">
+    <div class="auth-card">
+      <div class="auth-card__brand">
+        <div class="brand__mark" aria-hidden="true"></div>
+        <div>
+          <div class="brand__name">{{ SITE_NAME }}</div>
+          <span class="brand__sub">{{ SITE_TAGLINE }}</span>
+        </div>
+      </div>
+
+      <h1 class="auth-card__title">Staff sign in</h1>
+      <p class="auth-card__sub">Required for the control deck and upload tools.</p>
+
+      {% if form.errors %}
+        <ul class="messages"><li class="error">Those credentials did not match an active account.</li></ul>
+      {% endif %}
+
+      <form method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <div class="field">
+          <label for="id_username">Email</label>
+          <input type="email" name="username" id="id_username" autocomplete="username"
+                 placeholder="you@studio.com" required autofocus>
+        </div>
+
+        <div class="field">
+          <label for="id_password">Password</label>
+          <input type="password" name="password" id="id_password" autocomplete="current-password"
+                 placeholder="••••••••" required>
+        </div>
+
+        <button class="btn btn--primary btn--block" type="submit">Enter control deck</button>
+      </form>
+
+      <div class="auth-card__foot">
+        <a href="{% url 'accounts:password-reset' %}">Forgot your password?</a><br>
+        Public endpoints are open at <a href="/api/docs/">/api/docs/</a>.<br>
+        Client apps authenticate with JWT at <code class="mono">/api/auth/login/</code>.
+      </div>
+    </div>
+  </div>
+</body>
+</html>

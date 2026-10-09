@@ -1,0 +1,58 @@
+{% extends "site_base.html" %}
+{% load humanize %}
+
+{% block title %}{{ album.title }} · {{ album.artist.name }} · {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<article class="detail">
+  <header class="detail__hero">
+    <div class="detail__art">
+      {% if album.cover_image %}
+        <img src="{{ album.cover_image.url }}" alt="Cover art for {{ album.title }}">
+      {% else %}
+        <span class="art art--placeholder art--xl" aria-hidden="true">♫</span>
+      {% endif %}
+    </div>
+    <div class="detail__body">
+      <span class="chip chip--violet">{{ album.get_album_type_display }}</span>
+      <h1 class="detail__title">{{ album.title }}</h1>
+      <p class="detail__subtitle">
+        <a href="{% url 'music:artist-detail' album.artist.slug %}">{{ album.artist.name }}</a>
+        {% if album.release_date %} · {{ album.release_date|date:"Y" }}{% endif %}
+      </p>
+      <p class="detail__meta mono">
+        {{ album.track_count }} tracks · {{ album.duration_display }} · {{ album.total_plays|intcomma }} plays
+      </p>
+      <div class="detail__chips">
+        {% for genre in album.genres.all %}
+          <a class="chip" href="{% url 'music:genre-detail' genre.slug %}">{{ genre.name }}</a>
+        {% endfor %}
+      </div>
+      {% if tracks %}
+        <div class="detail__actions">
+          <button class="btn btn--primary" type="button" data-play-album="{{ album.slug }}"
+                  data-track-id="{{ tracks.0.id }}"
+                  data-track-title="{{ tracks.0.title }}"
+                  data-track-artist="{{ album.artist.name }}"
+                  data-track-artist-slug="{{ album.artist.slug }}"
+                  data-track-url="{% url 'music:track-detail' tracks.0.slug %}"
+                  data-track-duration="{{ tracks.0.duration_seconds }}"
+                  {% if tracks.0.cover_image %}data-track-cover="{{ tracks.0.cover_image.url }}"{% endif %}
+                  data-play="{{ tracks.0.id }}">
+            ▶ Play album
+          </button>
+        </div>
+      {% endif %}
+      {% if album.description %}<p class="detail__bio">{{ album.description|linebreaksbr }}</p>{% endif %}
+    </div>
+  </header>
+
+  <section class="shelf">
+    <div class="shelf__head">
+      <h2 class="shelf__title">Tracks</h2>
+      {% if tracks %}<span class="shelf__more mono">{{ tracks|length }} tracks</span>{% endif %}
+    </div>
+    {% include "music/includes/track_table.html" with tracks=tracks show_number=True show_album=False %}
+  </section>
+</article>
+{% endblock %}

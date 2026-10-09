@@ -1,0 +1,18 @@
+{% load humanize %}{% comment %}
+Bar fallback list. Used for every chart so the panel is never blank.
+  rows  — list of dicts with `label` and `value`
+  max   — optional override for the 100% scale
+{% endcomment %}
+<div class="bars">
+  {% for row in rows %}
+    <div class="bar-row">
+      <span class="bar-row__label" title="{{ row.label }}">{{ row.label }}</span>
+      <span class="bar-row__value">{{ row.value|default:0|intcomma }}</span>
+      <span class="bar-track">
+        <span class="bar-fill" style="width: {% widthratio row.value max 100 %}%"></span>
+      </span>
+    </div>
+  {% empty %}
+    <p class="empty mb-0">No data in this window yet.</p>
+  {% endfor %}
+</div>

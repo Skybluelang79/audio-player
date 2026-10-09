@@ -1,0 +1,28 @@
+{% extends "site_base.html" %}
+{% load humanize %}
+
+{% block title %}{{ genre.name }} · {{ SITE_NAME }}{% endblock %}
+{% block head %}<meta name="description" content="{{ genre.description|default:genre.name }}">{% endblock %}
+
+{% block content %}
+<article class="detail">
+  <header class="detail__hero detail__hero--slim">
+    <div class="detail__body">
+      <span class="chip" style="--accent: {{ genre.color }}">Genre</span>
+      <h1 class="detail__title">{{ genre.name }}</h1>
+      {% if genre.description %}<p class="detail__bio">{{ genre.description|linebreaksbr }}</p>{% endif %}
+      <p class="detail__meta mono">{{ tracks|length }} tracks</p>
+    </div>
+  </header>
+
+  <section class="shelf">
+    <div class="shelf__head"><h2 class="shelf__title">Tracks</h2></div>
+    {% include "music/includes/track_table.html" with tracks=tracks show_album=True %}
+  </section>
+
+  <div class="split">
+    {% include "music/includes/card_grid.html" with items=artists kind="artist" title="Artists in this genre" %}
+    {% include "music/includes/card_grid.html" with items=albums kind="album" title="Albums" %}
+  </div>
+</article>
+{% endblock %}
