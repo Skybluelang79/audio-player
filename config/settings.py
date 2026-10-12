@@ -37,6 +37,20 @@ env = environ.Env(
     # Per-play royalty used when generating artist payouts, stored as a decimal
     # string so the rate itself is never subject to float rounding.
     PAYOUT_RATE_PER_PLAY=(str, "0.004"),
+    # Object storage for media (S3-compatible, e.g. Cloudflare R2). Off by
+    # default so local dev and tests keep using the filesystem; free-tier hosts
+    # with an ephemeral disk turn it on and point these at a bucket instead.
+    USE_S3_MEDIA=(bool, False),
+    AWS_ACCESS_KEY_ID=(str, ""),
+    AWS_SECRET_ACCESS_KEY=(str, ""),
+    AWS_STORAGE_BUCKET_NAME=(str, ""),
+    # R2 uses https://<accountid>.r2.cloudflarestorage.com; AWS leaves it blank.
+    AWS_S3_ENDPOINT_URL=(str, ""),
+    AWS_S3_REGION_NAME=(str, "auto"),
+    # Public bucket domain (e.g. pub-xxxx.r2.dev or a custom domain). When set,
+    # media URLs are served directly and no signed query string is needed.
+    AWS_S3_CUSTOM_DOMAIN=(str, ""),
+    AWS_QUERYSTRING_AUTH=(bool, False),
     # Email defaults to the console backend so local development and CI never
     # need an SMTP server; set EMAIL_BACKEND to the SMTP backend in production.
     EMAIL_BACKEND=(str, "django.core.mail.backends.console.EmailBackend"),
@@ -192,7 +206,12 @@ STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else 
 STORAGES = {
     "default": {
         "BACKEND": env(
-            "DEFAULT_FILE_STORAGE", default="django.core.files.storage.FileSystemStorage"
+            "DEFAULT_FILE_STORAGE",
+            default=(
+                "storages.backends.s3.S3Storage"
+                if env("USE_S3_MEDIA")
+                else "django.core.files.storage.FileSystemStorage"
+            ),
         )
     },
     "staticfiles": {
@@ -209,6 +228,27 @@ STORAGES = {
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", default=str(BASE_DIR / "media")))
+
+# ---------------------------------------------------------------------------
+# Media on S3-compatible object storage (Cloudflare R2 / AWS S3)
+# ---------------------------------------------------------------------------
+#
+# django-storages reads the AWS_* names below straight from settings. R2 ignores
+# ACLs, so AWS_DEFAULT_ACL stays None and the bucket is made public at the
+# bucket/domain level instead.
+
+if env("USE_S3_MEDIA"):
+    AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
+    AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME")
+    AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL") or None
+    AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME")
+    AWS_S3_CUSTOM_DOMAIN = env("AWS_S3_CUSTOM_DOMAIN") or None
+    AWS_QUERYSTRING_AUTH = env("AWS_QUERYSTRING_AUTH")
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None
+    if AWS_S3_CUSTOM_DOMAIN:
+        MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
 
 # Hard cap on a single upload. Guards memory exhaustion on large audio files.
 MAX_UPLOAD_SIZE_MB = env("MAX_UPLOAD_SIZE_MB")

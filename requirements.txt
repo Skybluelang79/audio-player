@@ -14,6 +14,12 @@ drf-spectacular==0.30.0
 psycopg[binary]==3.3.6
 pillow==12.3.0
 
+# Object storage for media in production (S3-compatible, e.g. Cloudflare R2).
+# Free-tier hosts have no persistent disk, so uploaded audio/artwork is kept in
+# a bucket instead; the app only activates this when USE_S3_MEDIA is true.
+django-storages[s3]==1.14.6
+boto3==1.43.111
+
 # Whitenoise serves collected static files from the app process, so a deploy
 # does not need a separate web server in front of it. Required whenever
 # DEBUG is off, because Django's static() helper is then a no-op.

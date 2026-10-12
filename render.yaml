@@ -1,24 +1,20 @@
 # Render blueprint: https://render.com/docs/blueprint-spec
 #
-# Creates a Postgres database plus a web service. Media (uploaded audio and
-# artwork) lives on a mounted disk -- Render's container filesystem is wiped on
-# every deploy, so without `disk:` every upload is lost on the next release.
+# Free-tier layout: a single free web service, with PostgreSQL and media hosted
+# externally. Render's free plan has no persistent disk (disks are paid) and its
+# free PostgreSQL expires after 30 days, so instead this points at:
 #
-# MEDIA_ROOT is set below to the disk's absolute mount path so uploads land on
-# the persistent volume rather than the ephemeral container filesystem.
-
-databases:
-  - name: auralis-db
-    databaseName: auralis
-    user: auralis
-    plan: basic-256mb
-    postgresMajorVersion: "17"
+#   * Neon        -- free managed PostgreSQL (set the POSTGRES_* vars)
+#   * Cloudflare R2 -- free S3-compatible bucket for media (set the AWS_* vars)
+#
+# Both are provided through `sync: false` env vars, so Render prompts for them
+# at deploy time rather than storing secrets in the repo.
 
 services:
   - type: web
     name: auralis
     runtime: python
-    plan: starter
+    plan: free
     region: oregon
     branch: main
 
@@ -29,15 +25,8 @@ services:
       python manage.py migrate --noinput &&
       gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
 
-    # Uploaded audio can be large and slow to read from Postgres-backed storage,
-    # hence the raised timeout in startCommand.
     autoDeployTrigger: commit
     healthCheckPath: /healthz/
-
-    disk:
-      name: auralis-media
-      mountPath: /var/media
-      sizeGB: 10
 
     envVars:
       - key: PYTHON_VERSION
@@ -50,65 +39,57 @@ services:
         value: config.settings
 
       # Render terminates TLS at its edge proxy and forwards X-Forwarded-Proto,
-      # which settings.py already trusts via SECURE_PROXY_SSL_HEADER.
+      # which settings.py trusts via SECURE_PROXY_SSL_HEADER.
       - key: SECURE_SSL_REDIRECT
         value: "True"
 
       - key: SECURE_HSTS_SECONDS
         value: "31536000"
 
-      - key: ALLOWED_HOSTS
-        # Render injects the on-host hostname automatically; this covers the
-        # public domain. Add your own custom domain here if you add one.
-        sync: false
-
       - key: SECRET_KEY
         generateValue: true
 
-      # Required: do not use the SQLite fallback in production -- Render's
-      # filesystem is ephemeral, so the database would reset on every deploy.
+      - key: ALLOWED_HOSTS
+        # Render's on-host hostname plus your *.onrender.com domain. Add a custom
+        # domain here too if you attach one.
+        sync: false
+
+      # ---------------------------------------------------------------------
+      # PostgreSQL (Neon). Paste the values from your Neon connection string:
+      #   postgresql://USER:PASSWORD@HOST/DB?sslmode=require
+      # ---------------------------------------------------------------------
       - key: DB_ENGINE
         value: postgres
+      - key: POSTGRES_HOST
+        sync: false
+      - key: POSTGRES_PORT
+        value: "5432"
       - key: POSTGRES_DB
-        fromDatabase:
-          name: auralis-db
-          property: database
+        sync: false
       - key: POSTGRES_USER
-        fromDatabase:
-          name: auralis-db
-          property: user
+        sync: false
       - key: POSTGRES_PASSWORD
-        fromDatabase:
-          name: auralis-db
-          property: password
+        sync: false
 
-      - key: MEDIA_ROOT
-        value: /var/media
-
-      # Streaming auth: keep the site player public unless a signed token is
-      # wanted in front of /audio/. Downloads default to authenticated-only.
-      - key: STREAM_REQUIRE_AUTH
-        value: "False"
-      - key: DOWNLOADS_REQUIRE_AUTH
+      # ---------------------------------------------------------------------
+      # Media on Cloudflare R2 (S3-compatible). USE_S3_MEDIA turns the bucket
+      # on; the rest come from your R2 bucket + API token.
+      # ---------------------------------------------------------------------
+      - key: USE_S3_MEDIA
         value: "True"
-
-      # Per-play royalty applied when staff generate artist payouts. Store as a
-      # decimal string so the rate never passes through a float.
-      - key: PAYOUT_RATE_PER_PLAY
-        value: "0.004"
-
-      # HLS packaging is OFF by default. Turning it on requires ffmpeg on the
-      # runtime, which the built-in Python runtime does not ship; switch to a
-      # custom Docker image (`raycast/render-python-ffmpeg` or similar) before
-      # enabling it.
-      - key: HLS_ENABLED
-        value: "False"
-      - key: HLS_SEGMENT_SECONDS
-        value: "6"
-      - key: HLS_VARIANTS
-        value: "128,192"
-      - key: FFMPEG_BINARY
-        value: "ffmpeg"
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_STORAGE_BUCKET_NAME
+        sync: false
+      - key: AWS_S3_ENDPOINT_URL
+        sync: false
+      - key: AWS_S3_REGION_NAME
+        value: auto
+      - key: AWS_S3_CUSTOM_DOMAIN
+        # e.g. pub-abc123.r2.dev, or your custom media domain.
+        sync: false
 
       - key: CORS_ALLOWED_ORIGINS
         sync: false
