@@ -135,3 +135,84 @@ class QuickTrackUploadForm(forms.ModelForm):
             if genres:
                 track.genres.set(genres)
         return track
+
+
+class StudioTrackUploadForm(QuickTrackUploadForm):
+    """Quick upload pinned to one artist for the artist studio.
+
+    The owning artist is hidden from the artist (they can only ever release
+    under their own handle); the rightsholder consent still applies.
+    """
+
+    def __init__(self, *args, artist=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._pinned_artist = artist
+        self.fields.pop("artist_name", None)
+        self.fields["artist"].widget = forms.HiddenInput()
+        if artist is not None:
+            self.fields["artist"].queryset = Artist.objects.filter(pk=artist.pk)
+            self.fields["artist"].initial = artist.pk
+
+    def clean_artist(self):
+        if self._pinned_artist is not None:
+            return self._pinned_artist
+        artist = self.cleaned_data.get("artist")
+        if artist is None:
+            raise forms.ValidationError("Artist is required.")
+        return artist
+
+
+class ArtistProfileForm(forms.ModelForm):
+    """An artist fills in (or updates) the public face of their profile."""
+
+    class Meta:
+        model = Artist
+        fields = ("bio", "website", "country", "image", "genres")
+        widgets = {"bio": forms.Textarea(attrs={"rows": 4})}
+
+    def clean_image(self):
+        image = self.cleaned_data.get("image")
+        if image:
+            validate_image_extension(image.name)
+            validate_upload_size(image)
+        return image
+
+
+class ArtistClaimForm(forms.Form):
+    """Onboarding: create a brand-new profile or claim an unclaimed one."""
+
+    MODE_CHOICES = (
+        ("create", "Create a new profile"),
+        ("claim", "Claim an existing profile"),
+    )
+
+    mode = forms.ChoiceField(choices=MODE_CHOICES, initial="create")
+    name = forms.CharField(
+        max_length=180, required=False, label="Artist name (new profile)"
+    )
+    existing_artist = forms.ModelChoiceField(
+        queryset=Artist.objects.none(),
+        required=False,
+        label="Unclaimed profile",
+        help_text="Profiles nobody owns yet, sorted A–Z.",
+    )
+    country = forms.CharField(max_length=64, required=False)
+    website = forms.URLField(required=False)
+    bio = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}), required=False, max_length=3000
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["existing_artist"].queryset = (
+            Artist.objects.filter(owner__isnull=True).order_by("name")
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        mode = cleaned.get("mode")
+        if mode == "create" and not (cleaned.get("name") or "").strip():
+            self.add_error("name", "Enter a name for your new profile.")
+        if mode == "claim" and not cleaned.get("existing_artist"):
+            self.add_error("existing_artist", "Choose a profile to claim.")
+        return cleaned

@@ -1,9 +1,11 @@
 """Analytics endpoints: play statistics, leaderboards and platform dashboards."""
 
-from django.db.models import Count
+from decimal import ROUND_HALF_UP, Decimal
+
+from django.db.models import Count, Sum
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers, status, viewsets
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -11,8 +13,11 @@ from music.models import Track
 from music.permissions import IsAdminStaff
 from music.serializers import TrackSummarySerializer
 
+from . import payouts as payout_service
 from . import services
-from .models import DailyPlatformStat, DailyTrackStat, PlayEvent
+from .models import ArtistPayout, DailyPlatformStat, DailyTrackStat, PlayEvent
+
+
 class PlayEventSerializer(serializers.ModelSerializer):
     track_title = serializers.CharField(source="track.title", read_only=True)
     artist_name = serializers.CharField(source="track.artist.name", read_only=True)
@@ -40,6 +45,25 @@ class DailyPlatformStatSerializer(serializers.ModelSerializer):
         model = DailyPlatformStat
         fields = ("date", "total_plays", "unique_listeners", "unique_tracks", "by_source")
         read_only_fields = fields
+
+
+class ArtistPayoutSerializer(serializers.ModelSerializer):
+    artist_name = serializers.CharField(source="artist.name", read_only=True)
+    artist_slug = serializers.CharField(source="artist.slug", read_only=True)
+
+    class Meta:
+        model = ArtistPayout
+        fields = (
+            "id", "artist", "artist_name", "artist_slug", "period_start", "period_end",
+            "plays", "rate_per_play", "amount", "status", "method", "reference",
+            "note", "paid_at", "created_at", "updated_at",
+        )
+        # Everything is derived, so read-only by default; the staff-only
+        # `partial_update` still needs to adjudicate `status`/`method`/`paid_at`.
+        read_only_fields = (
+            "id", "artist", "artist_name", "artist_slug", "period_start", "period_end",
+            "plays", "rate_per_play", "amount", "created_at", "updated_at",
+        )
 
 
 class PlatformStatsView(APIView):
@@ -163,6 +187,98 @@ class PlayEventAdminViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["track", "user", "source", "completed"]
     ordering = ("-played_at",)
     http_method_names = ["get", "head", "options"]
+
+
+def _visible_payouts(user):
+    """Payouts a caller may read: staff see all, artists see the ones they own."""
+    queryset = ArtistPayout.objects.select_related("artist")
+    if getattr(user, "is_admin_staff", False):
+        return queryset
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    return queryset.filter(artist__owner=user)
+
+
+class PayoutViewSet(viewsets.ModelViewSet):
+    """Artist earnings. Staff adjudicate; artists read their own.
+
+    Generate/summary live on dedicated views (see ``PayoutGenerateView`` and
+    ``PayoutSummaryView``) rather than router actions, so the collection still
+    refuses a raw ``POST`` while the staff tooling stays reachable.
+    """
+
+    serializer_class = ArtistPayoutSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "patch", "head", "options"]
+    filterset_fields = ["status", "artist", "method"]
+    ordering = ("-period_end", "-amount")
+
+    def get_queryset(self):
+        return _visible_payouts(self.request.user)
+
+    def get_permissions(self):
+        if self.action == "partial_update":
+            return [IsAdminStaff()]
+        return super().get_permissions()
+
+
+class PayoutGenerateView(APIView):
+    """``POST /api/payouts/generate/`` — staff build payouts for a period."""
+
+    permission_classes = [IsAdminStaff]
+
+    @extend_schema(
+        tags=["payouts"],
+        request=None,
+        responses={201: ArtistPayoutSerializer(many=True), 400: None},
+        summary="Generate artist payouts",
+    )
+    def post(self, request):
+        try:
+            created = payout_service.generate_payouts(
+                request.data.get("period_start"),
+                request.data.get("period_end"),
+                rate=request.data.get("rate"),
+                force=bool(request.data.get("force")),
+            )
+        except (ValueError, TypeError) as exc:
+            return Response({"error": {"detail": str(exc)}}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"count": len(created), "payouts": ArtistPayoutSerializer(created, many=True).data},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class PayoutSummaryView(APIView):
+    """``GET /api/payouts/summary/`` — totals by status for the caller's scope."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["payouts"], responses={200: None}, summary="Payout totals by status")
+    def get(self, request):
+        queryset = _visible_payouts(request.user)
+        rows = (
+            queryset.values("status")
+            .annotate(amount=Sum("amount"), count=Count("id"))
+            .order_by("status")
+        )
+        by_status = {
+            row["status"]: {"amount": str(row["amount"] or 0), "count": row["count"]}
+            for row in rows
+        }
+        cent = payout_service.CENT
+        total = queryset.aggregate(total=Sum("amount"))["total"] or 0
+        pending = (
+            queryset.filter(status=ArtistPayout.Status.PENDING).aggregate(total=Sum("amount"))["total"]
+            or 0
+        )
+        return Response(
+            {
+                "total": str(Decimal(total).quantize(cent, rounding=ROUND_HALF_UP)),
+                "pending": str(Decimal(pending).quantize(cent, rounding=ROUND_HALF_UP)),
+                "by_status": by_status,
+            }
+        )
 
 
 class ArtistLeaderboardView(APIView):

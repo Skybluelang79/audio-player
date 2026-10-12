@@ -34,6 +34,9 @@ router.register("history", playlist_views.PlayHistoryViewSet, basename="history"
 # --- Notifications --------------------------------------------------------
 router.register("notifications", notification_views.NotificationViewSet, basename="notification")
 
+# --- Payouts --------------------------------------------------------------
+router.register("payouts", analytics_views.PayoutViewSet, basename="payout")
+
 auth_patterns = [
     path("register/", account_views.RegisterView.as_view(), name="register"),
     path("login/", account_views.LoginView.as_view(), name="login"),
@@ -103,6 +106,11 @@ analytics_patterns = [
     path("tracks/<int:pk>/", analytics_views.TrackAnalyticsView.as_view(), name="analytics-track"),
 ]
 
+payout_patterns = [
+    path("generate/", analytics_views.PayoutGenerateView.as_view(), name="payout-generate"),
+    path("summary/", analytics_views.PayoutSummaryView.as_view(), name="payout-summary"),
+]
+
 search_patterns = [
     path("", search_views.GlobalSearchView.as_view(), name="search"),
     path("suggest/", search_views.SearchSuggestionsView.as_view(), name="search-suggest"),
@@ -125,5 +133,13 @@ urlpatterns = [
     path("recommendations/", include(recommendation_patterns)),
     path("radio/", include(radio_patterns)),
     path("queue/", include(queue_patterns)),
+    # Explicit staff/artist payout tools must precede the router's <pk> route.
+    path("payouts/", include(payout_patterns)),
+    # HLS sub-playlists and segments live below the track detail route.
+    path(
+        "tracks/<int:pk>/hls/<path:path>",
+        music_views.track_hls_file,
+        name="track-hls-file",
+    ),
     path("", include(router.urls)),
 ]

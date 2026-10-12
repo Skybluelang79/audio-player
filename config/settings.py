@@ -28,6 +28,15 @@ env = environ.Env(
     STREAM_REQUIRE_AUTH=(bool, False),
     DOWNLOADS_REQUIRE_AUTH=(bool, True),
     STREAM_URL_TTL_SECONDS=(int, 3600),
+    # HLS packaging is opt-in: it needs ffmpeg on the host and a place to write
+    # segments. When off, the `/hls/` endpoints simply report "not packaged".
+    HLS_ENABLED=(bool, False),
+    HLS_SEGMENT_SECONDS=(int, 6),
+    HLS_VARIANTS=(str, "128,192"),
+    FFMPEG_BINARY=(str, "ffmpeg"),
+    # Per-play royalty used when generating artist payouts, stored as a decimal
+    # string so the rate itself is never subject to float rounding.
+    PAYOUT_RATE_PER_PLAY=(str, "0.004"),
     # Email defaults to the console backend so local development and CI never
     # need an SMTP server; set EMAIL_BACKEND to the SMTP backend in production.
     EMAIL_BACKEND=(str, "django.core.mail.backends.console.EmailBackend"),
@@ -211,6 +220,15 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 STREAM_REQUIRE_AUTH = env("STREAM_REQUIRE_AUTH")
 DOWNLOADS_REQUIRE_AUTH = env("DOWNLOADS_REQUIRE_AUTH")
 STREAM_URL_TTL_SECONDS = env("STREAM_URL_TTL_SECONDS")
+
+# HLS packaging: bitrate ladder, segment length and the ffmpeg executable.
+HLS_ENABLED = env("HLS_ENABLED")
+HLS_SEGMENT_SECONDS = env("HLS_SEGMENT_SECONDS")
+HLS_VARIANTS = env("HLS_VARIANTS")
+FFMPEG_BINARY = env("FFMPEG_BINARY")
+
+# Royalty rate applied per completed play when staff generate artist payouts.
+PAYOUT_RATE_PER_PLAY = env("PAYOUT_RATE_PER_PLAY")
 
 # ---------------------------------------------------------------------------
 # Email

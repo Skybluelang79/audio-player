@@ -1,0 +1,75 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#05060a">
+  <title>{% block title %}{{ page_title|default:"Artist Studio" }} · {{ SITE_NAME }}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2300e5ff'/><path d='M9 20V12h3v5h3v-8h3v11h3v-6h2v6z' fill='%2305060a'/></svg>">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="app">
+
+    <div class="brand">
+      <div class="brand__mark" aria-hidden="true"></div>
+      <div>
+        <div class="brand__name">{{ SITE_NAME }}</div>
+        <span class="brand__sub">artist studio</span>
+      </div>
+    </div>
+
+    <header class="header">
+      <div>
+        <div class="header__title">{% block page_title %}Artist Studio{% endblock %}</div>
+        <div class="header__meta">{% block page_meta %}{% if artist %}{{ artist.name }}{% else %}no profile yet{% endif %}{% endblock %}</div>
+      </div>
+      <div class="header__actions">
+        {% block header_actions %}{% endblock %}
+        <a class="btn btn--sm btn--ghost" href="{% url 'music:home' %}" target="_blank" rel="noopener">View site</a>
+        <div class="row" style="gap:9px">
+          <div class="avatar" title="{{ user.full_name }}">{{ user.initials }}</div>
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="btn btn--sm" type="submit">Sign out</button>
+          </form>
+        </div>
+      </div>
+    </header>
+
+    <nav class="nav" aria-label="Studio sections">
+      <div class="nav__label">Your studio</div>
+      <a class="nav__item {% if active_nav == 'studio' %}is-active{% endif %}" href="{% url 'dashboard:studio' %}">
+        <span class="nav__icon" aria-hidden="true">◈</span> Overview
+      </a>
+      <a class="nav__item" href="{% url 'dashboard:studio-profile' %}">
+        <span class="nav__icon" aria-hidden="true">✎</span> Profile
+      </a>
+      <a class="nav__item" href="{% url 'dashboard:studio-upload' %}">
+        <span class="nav__icon" aria-hidden="true">⇪</span> Upload
+      </a>
+      <div class="nav__spacer"></div>
+      <div class="nav__label">Catalogue</div>
+      {% if artist %}
+        <a class="nav__item" href="{{ artist.get_absolute_url }}" target="_blank" rel="noopener">
+          <span class="nav__icon" aria-hidden="true">➜</span> Public page
+        </a>
+      {% endif %}
+    </nav>
+
+    <main class="main" id="main">
+      {% if messages %}
+        <ul class="messages">
+          {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+</body>
+</html>

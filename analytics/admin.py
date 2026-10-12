@@ -3,7 +3,13 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import ArtistListenerSnapshot, DailyPlatformStat, DailyTrackStat, PlayEvent
+from .models import (
+    ArtistListenerSnapshot,
+    ArtistPayout,
+    DailyPlatformStat,
+    DailyTrackStat,
+    PlayEvent,
+)
 
 
 @admin.register(PlayEvent)
@@ -66,3 +72,19 @@ class ArtistListenerSnapshotAdmin(admin.ModelAdmin):
     autocomplete_fields = ("artist",)
     list_select_related = ("artist",)
     date_hierarchy = "month"
+
+
+@admin.register(ArtistPayout)
+class ArtistPayoutAdmin(admin.ModelAdmin):
+    list_display = ("period", "artist", "plays", "amount", "status", "method", "paid_at")
+    list_filter = ("status", "method", "period_end")
+    search_fields = ("artist__name", "reference")
+    autocomplete_fields = ("artist",)
+    list_select_related = ("artist",)
+    date_hierarchy = "period_end"
+    list_per_page = 50
+    readonly_fields = ("plays", "rate_per_play", "amount", "created_at", "updated_at")
+
+    @admin.display(description="Period", ordering="period_end")
+    def period(self, obj):
+        return f"{obj.period_start:%Y-%m-%d} → {obj.period_end:%Y-%m-%d}"

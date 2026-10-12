@@ -21,6 +21,7 @@ from playlists.filters import with_playlist_counters
 from playlists.models import Playlist, trending_playlists
 
 from .filters import annotate_counts
+from .lyrics import display_lines, is_synced
 from .models import Album, Artist, Genre, Track
 
 #: Rows rendered per shelf on the home page and genre pages.
@@ -133,6 +134,8 @@ class TrackDetailView(SiteViewMixin, DetailView):
                 "is_favorite": self.request.user.is_authenticated
                 and track.favorited_by.filter(user=self.request.user).exists(),
                 "plays_today": track.plays_today,
+                "lyrics_synced": is_synced(track.lyrics),
+                "lyrics_lines": display_lines(track.lyrics),
             }
         )
         return context

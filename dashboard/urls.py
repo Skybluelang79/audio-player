@@ -30,4 +30,10 @@ urlpatterns = [
         name="moderation-action",
     ),
     path("tracks/<int:pk>/", views.TrackAnalyticsView.as_view(), name="track-analytics"),
+
+    # Artist studio (self-service onboarding for artist accounts).
+    path("studio/", views.StudioHomeView.as_view(), name="studio"),
+    path("studio/claim/", views.StudioClaimView.as_view(), name="studio-claim"),
+    path("studio/profile/", views.StudioProfileView.as_view(), name="studio-profile"),
+    path("studio/upload/", views.StudioUploadView.as_view(), name="studio-upload"),
 ]

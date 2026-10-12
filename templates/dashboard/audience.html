@@ -126,6 +126,30 @@
     </section>
   </div>
 
+  <div class="grid grid--2">
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Listening by hour</div>
+        <div class="panel__hint">local time · 30d</div>
+      </div>
+      <div class="panel__body">
+        <div class="chart"><canvas id="chart-hourly" aria-label="Plays by hour of day"></canvas></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Playback funnel</div>
+        <div class="panel__hint">30d</div>
+      </div>
+      <div class="panel__body">
+        <div class="chart"><canvas id="chart-funnel" aria-label="Playback funnel"></canvas></div>
+      </div>
+    </section>
+  </div>
+
   {{ timeseries|json_script:"chart-timeseries" }}
+  {{ hourly|json_script:"chart-hourly-data" }}
+  {{ funnel|json_script:"chart-funnel-data" }}
 
 {% endblock %}

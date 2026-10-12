@@ -1,0 +1,59 @@
+{% extends "dashboard/studio_base.html" %}
+
+{% block title %}Profile · Artist Studio · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}Edit your artist profile{% endblock %}
+{% block page_meta %}{{ artist.name }}{% endblock %}
+
+{% block content %}
+
+<section class="panel">
+  <div class="panel__head">
+    <div class="panel__title">{{ artist.name }}</div>
+    <div class="panel__hint">shown on your public page</div>
+  </div>
+  <div class="panel__body">
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="messages"><li class="error">{{ form.non_field_errors|striptags }}</li></div>
+      {% endif %}
+
+      <div class="field {% if form.bio.errors %}field-error{% endif %}">
+        <label for="{{ form.bio.id_for_label }}">Bio</label>
+        {{ form.bio }}
+        {% if form.bio.errors %}<ul class="errorlist">{% for e in form.bio.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      </div>
+
+      <div class="form-row">
+        <div class="field {% if form.website.errors %}field-error{% endif %}">
+          <label for="{{ form.website.id_for_label }}">Website</label>
+          {{ form.website }}
+        </div>
+        <div class="field {% if form.country.errors %}field-error{% endif %}">
+          <label for="{{ form.country.id_for_label }}">Country</label>
+          {{ form.country }}
+        </div>
+      </div>
+
+      <div class="field {% if form.image.errors %}field-error{% endif %}">
+        <label for="{{ form.image.id_for_label }}">Press photo</label>
+        {{ form.image }}
+        {% if form.image.errors %}<ul class="errorlist">{% for e in form.image.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        <span class="helptext">Square works best — jpg · png · webp.</span>
+      </div>
+
+      <div class="field {% if form.genres.errors %}field-error{% endif %}">
+        <label for="{{ form.genres.id_for_label }}">Genres</label>
+        {{ form.genres }}
+      </div>
+
+      <div class="row" style="margin-top:18px">
+        <button class="btn btn--primary" type="submit">Save profile</button>
+        <a class="btn btn--ghost" href="{% url 'dashboard:studio' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>
+
+{% endblock %}

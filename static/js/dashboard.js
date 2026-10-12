@@ -239,6 +239,23 @@
         sources.map(function (_row, i) { return PALETTE[i % PALETTE.length]; })
       );
     }
+
+    var hourly = readJSON("chart-hourly-data", []);
+    if (hourly.length && document.getElementById("chart-hourly")) {
+      drawLine(
+        document.getElementById("chart-hourly"),
+        hourly.map(function (row) { return row.label; }),
+        [{ label: "Plays", data: hourly.map(function (r) { return r.plays; }), color: PALETTE[4] }]
+      );
+    }
+
+    var funnel = readJSON("chart-funnel-data", {});
+    if (funnel && funnel.stages && funnel.stages.length && document.getElementById("chart-funnel")) {
+      drawBars(
+        document.getElementById("chart-funnel"),
+        funnel.stages.map(function (row) { return { title: row.stage, plays: row.value }; })
+      );
+    }
   }
 
   if (document.readyState === "loading") {

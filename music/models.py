@@ -289,6 +289,12 @@ class Track(SluggedModel, TimeStampedModel):
     play_count = models.PositiveBigIntegerField(default=0, db_index=True)
     like_count = models.PositiveIntegerField(default=0)
     download_count = models.PositiveIntegerField(default=0)
+    hls_playlist = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Relative path to the packaged HLS master playlist, if any.",
+    )
+    hls_generated_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     objects = TrackQuerySet.as_manager()
 
@@ -330,11 +336,20 @@ class Track(SluggedModel, TimeStampedModel):
     def delete(self, *args, **kwargs):
         delete_file(self.audio_file)
         delete_file(self.cover_image)
+        if self.hls_playlist:
+            from .hls import remove_hls
+
+            remove_hls(self)
         return super().delete(*args, **kwargs)
 
     @property
     def is_playable(self) -> bool:
         return bool(self.audio_file) and self.status == self.Status.PUBLISHED
+
+    @property
+    def has_hls(self) -> bool:
+        """True once an HLS master playlist has been packaged for this track."""
+        return bool(self.hls_playlist)
 
     @property
     def duration_display(self) -> str:

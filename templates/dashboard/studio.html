@@ -1,0 +1,95 @@
+{% extends "dashboard/studio_base.html" %}
+{% load humanize %}
+
+{% block title %}Overview · Artist Studio · {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+
+{% if not artist %}
+  <section class="panel">
+    <div class="panel__head">
+      <div class="panel__title">Welcome to your studio</div>
+      <div class="panel__hint">step 1 of 2</div>
+    </div>
+    <div class="panel__body">
+      <p class="dim">You don't manage an artist profile yet. Create a brand-new one, or claim a profile that nobody owns, and you'll be able to publish and track your catalogue here.</p>
+      <div class="row" style="margin-top:16px">
+        <a class="btn btn--primary" href="{% url 'dashboard:studio-claim' %}">Set up your profile →</a>
+      </div>
+    </div>
+  </section>
+{% else %}
+
+  <div class="stats">
+    {% include "dashboard/includes/stat_tile.html" with label="Published tracks" value=artist.track_count accent="#00e5ff" foot="live on the site" %}
+    {% include "dashboard/includes/stat_tile.html" with label="All-time plays" value=play_count accent="#b47cff" foot="across your catalogue" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Followers" value=follower_count accent="#4da3ff" foot="subscribers to your profile" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Monthly listeners" value=artist.monthly_listeners accent="#ffb020" foot="30d, distinct accounts" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Earnings pending" value=payouts_pending|floatformat:"2" accent="#00e5a0" foot="plays owed" %}
+    {% include "dashboard/includes/stat_tile.html" with label="Earnings total" value=payouts_total|floatformat:"2" accent="#7c8db5" foot="all periods" %}
+  </div>
+
+  <div class="grid grid--2">
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Profile</div>
+        <a class="btn btn--sm btn--ghost" href="{% url 'dashboard:studio-profile' %}">Edit →</a>
+      </div>
+      <div class="panel__body">
+        <div class="media-cell">
+          {% if artist.image %}
+            <img class="art art--lg" src="{{ artist.image.url }}" alt="" loading="lazy">
+          {% else %}
+            <span class="art art--lg art--placeholder" aria-hidden="true">◈</span>
+          {% endif %}
+          <div class="media-cell__text">
+            <div class="media-cell__title">{{ artist.name }}</div>
+            <div class="media-cell__sub">{{ artist.country|default:"Unlisted region" }}{% if artist.verified %} · <span class="chip chip--cyan">Verified</span>{% endif %}</div>
+          </div>
+        </div>
+        {% if artist.bio %}<p class="dim text-sm" style="margin-top:12px">{{ artist.bio|truncatewords:40 }}</p>{% endif %}
+        {% if artist.website %}<a class="text-sm" href="{{ artist.website }}" target="_blank" rel="noopener">{{ artist.website }}</a>{% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div class="panel__title">Your tracks</div>
+        <a class="btn btn--sm btn--ghost" href="{% url 'dashboard:studio-upload' %}">+ Upload</a>
+      </div>
+      <div class="panel__body panel__body--flush">
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th>Track</th><th class="num">Plays</th><th class="num">Downloads</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {% for track in tracks %}
+                <tr>
+                  <td>
+                    <div class="media-cell__text">
+                      <div class="media-cell__title">{{ track.title }}</div>
+                      <div class="media-cell__sub">{{ track.duration_display }}{% if track.album %} · {{ track.album.title }}{% endif %}</div>
+                    </div>
+                  </td>
+                  <td class="num">{{ track.play_count|intcomma }}</td>
+                  <td class="num dim">{{ track.download_count|intcomma }}</td>
+                  <td>
+                    {% if track.status == 'published' %}<span class="chip chip--green">Published</span>
+                    {% elif track.status == 'processing' %}<span class="chip chip--amber">Processing</span>
+                    {% else %}<span class="chip chip--amber">Draft</span>{% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4" class="empty">Nothing uploaded yet. Publish your first track.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+{% endif %}
+
+{% endblock %}

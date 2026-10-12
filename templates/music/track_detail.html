@@ -66,10 +66,20 @@
     </div>
   </header>
 
-  {% if track.lyrics %}
+  {% if lyrics_lines %}
     <section class="panel">
-      <div class="panel__head"><div class="panel__title">Lyrics</div></div>
-      <div class="panel__body lyrics">{{ track.lyrics|linebreaks }}</div>
+      <div class="panel__head">
+        <div class="panel__title">Lyrics</div>
+        {% if lyrics_synced %}<span class="chip chip--cyan">Synced</span>{% endif %}
+      </div>
+      <div class="panel__body lyrics{% if lyrics_synced %} lyrics--synced{% endif %}"
+           data-lyrics-track-id="{{ track.id }}"
+           data-lyrics-synced="{% if lyrics_synced %}1{% else %}0{% endif %}">
+        {% for line in lyrics_lines %}
+          <p class="lyrics__line"
+             {% if lyrics_synced %}data-lyrics-time="{{ line.time|stringformat:'s' }}"{% endif %}>{{ line.text }}</p>
+        {% endfor %}
+      </div>
     </section>
   {% endif %}
 

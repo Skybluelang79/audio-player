@@ -4,8 +4,8 @@
 # artwork) lives on a mounted disk -- Render's container filesystem is wiped on
 # every deploy, so without `disk:` every upload is lost on the next release.
 #
-# NOTE: this blueprint does not set MEDIA_ROOT, because MEDIA_ROOT must be an
-# absolute path matching the mount path. See the note in `render.yaml` below.
+# MEDIA_ROOT is set below to the disk's absolute mount path so uploads land on
+# the persistent volume rather than the ephemeral container filesystem.
 
 databases:
   - name: auralis-db
@@ -84,6 +84,31 @@ services:
 
       - key: MEDIA_ROOT
         value: /var/media
+
+      # Streaming auth: keep the site player public unless a signed token is
+      # wanted in front of /audio/. Downloads default to authenticated-only.
+      - key: STREAM_REQUIRE_AUTH
+        value: "False"
+      - key: DOWNLOADS_REQUIRE_AUTH
+        value: "True"
+
+      # Per-play royalty applied when staff generate artist payouts. Store as a
+      # decimal string so the rate never passes through a float.
+      - key: PAYOUT_RATE_PER_PLAY
+        value: "0.004"
+
+      # HLS packaging is OFF by default. Turning it on requires ffmpeg on the
+      # runtime, which the built-in Python runtime does not ship; switch to a
+      # custom Docker image (`raycast/render-python-ffmpeg` or similar) before
+      # enabling it.
+      - key: HLS_ENABLED
+        value: "False"
+      - key: HLS_SEGMENT_SECONDS
+        value: "6"
+      - key: HLS_VARIANTS
+        value: "128,192"
+      - key: FFMPEG_BINARY
+        value: "ffmpeg"
 
       - key: CORS_ALLOWED_ORIGINS
         sync: false

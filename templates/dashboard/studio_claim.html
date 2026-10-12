@@ -1,0 +1,66 @@
+{% extends "dashboard/studio_base.html" %}
+
+{% block title %}Set up your profile · Artist Studio · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}Set up your artist profile{% endblock %}
+
+{% block content %}
+
+<section class="panel">
+  <div class="panel__head">
+    <div class="panel__title">Choose how to take control</div>
+    <div class="panel__hint">{{ claimable }} claimable profile(s)</div>
+  </div>
+  <div class="panel__body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="messages"><li class="error">{{ form.non_field_errors|striptags }}</li></div>
+      {% endif %}
+
+      {% for value, label in form.mode.field.choices %}
+        <div class="field form-check">
+          <input type="radio" name="mode" value="{{ value }}" id="mode-{{ value }}"
+                 {% if value == form.mode.value or value == form.mode.initial %}checked{% endif %}>
+          <label for="mode-{{ value }}">{{ label }}</label>
+        </div>
+      {% endfor %}
+
+      <div class="field {% if form.name.errors %}field-error{% endif %}">
+        <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+        {{ form.name }}
+        {% if form.name.errors %}<ul class="errorlist">{% for e in form.name.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      </div>
+
+      <div class="field {% if form.existing_artist.errors %}field-error{% endif %}">
+        <label for="{{ form.existing_artist.id_for_label }}">{{ form.existing_artist.label }}</label>
+        {{ form.existing_artist }}
+        {% if form.existing_artist.errors %}<ul class="errorlist">{% for e in form.existing_artist.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        <span class="helptext">{{ form.existing_artist.help_text }}</span>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label for="{{ form.country.id_for_label }}">Country</label>
+          {{ form.country }}
+        </div>
+        <div class="field">
+          <label for="{{ form.website.id_for_label }}">Website</label>
+          {{ form.website }}
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="{{ form.bio.id_for_label }}">Short bio</label>
+        {{ form.bio }}
+      </div>
+
+      <div class="row" style="margin-top:18px">
+        <button class="btn btn--primary" type="submit">Claim profile</button>
+        <a class="btn btn--ghost" href="{% url 'dashboard:studio' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>
+
+{% endblock %}

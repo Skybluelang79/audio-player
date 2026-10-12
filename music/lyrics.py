@@ -66,6 +66,17 @@ def plain_lines(lyrics: str):
     return [line for line in lines if line]
 
 
+def display_lines(lyrics: str):
+    """Lines for the site lyrics panel, synced or not.
+
+    Returns ``[{"time": seconds | None, "text": line}]`` so the template can
+    render both shapes identically; ``time`` is ``None`` for unsynced lyrics.
+    """
+    if is_synced(lyrics):
+        return parse_lrc(lyrics)
+    return [{"time": None, "text": line} for line in plain_lines(lyrics)]
+
+
 def lyrics_payload(track) -> dict:
     """API shape for a track's lyrics, used by ``TrackViewSet.lyrics``."""
     text = track.lyrics or ""

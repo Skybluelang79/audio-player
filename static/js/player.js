@@ -377,6 +377,7 @@
     }
     if (el.duration) el.duration.textContent = formatTime(track.duration);
     syncLikeButton(track);
+    syncLyrics();
     renderQueue();
   }
 
@@ -763,7 +764,7 @@
     audio.addEventListener("loadedmetadata", function () {
       if (el.duration) el.duration.textContent = formatTime(audio.duration);
     });
-    audio.addEventListener("timeupdate", function () { syncSeek(); maybeReportPlay(); });
+    audio.addEventListener("timeupdate", function () { syncSeek(); maybeReportPlay(); syncLyrics(); });
     audio.addEventListener("progress", syncSeek);
     audio.addEventListener("play", syncPlayState);
     audio.addEventListener("pause", syncPlayState);
@@ -929,6 +930,39 @@
           playbackRate: audio.playbackRate
         });
       } catch (err) { /* position state can reject transiently */ }
+    }
+  }
+
+  /* --- synced lyrics ------------------------------------------------------ */
+
+  /* The lyrics panel only exists on a track page. Highlight the line matching
+   * the playhead, but only while the playing track is the one the panel was
+   * rendered for; otherwise clear the highlight so a stale line never sticks. */
+  function syncLyrics() {
+    var panel = document.querySelector(".lyrics[data-lyrics-track-id]");
+    if (!panel) return;
+    var lines = panel.querySelectorAll("[data-lyrics-time]");
+    if (!lines.length) return;
+
+    var track = current();
+    var active = -1;
+    if (track && String(track.id) === panel.dataset.lyricsTrackId) {
+      var time = audio ? audio.currentTime : 0;
+      for (var i = 0; i < lines.length; i++) {
+        if (parseFloat(lines[i].dataset.lyricsTime) <= time + 0.15) active = i;
+        else break;
+      }
+    }
+
+    for (var j = 0; j < lines.length; j++) {
+      var isActive = j === active;
+      lines[j].classList.toggle("is-active", isActive);
+      if (isActive) lines[j].setAttribute("aria-current", "true");
+      else lines[j].removeAttribute("aria-current");
+    }
+
+    if (active !== -1 && panel.classList.contains("lyrics--synced")) {
+      lines[active].scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   }
 

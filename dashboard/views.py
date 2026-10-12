@@ -13,15 +13,20 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q, Sum
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import DetailView, FormView, ListView, TemplateView, View
 
 from analytics import services
-from analytics.models import DailyPlatformStat, DailyTrackStat, PlayEvent
+from analytics.models import ArtistPayout, DailyPlatformStat, DailyTrackStat, PlayEvent
 from music.filters import annotate_counts
-from music.forms import QuickTrackUploadForm
+from music.forms import (
+    ArtistClaimForm,
+    ArtistProfileForm,
+    QuickTrackUploadForm,
+    StudioTrackUploadForm,
+)
 from music.models import Album, Artist, Genre, Track, TrackComment
 from playlists.filters import with_playlist_counters
 from playlists.models import Playlist
@@ -511,6 +516,8 @@ class AudienceView(DashboardBase, TemplateView):
                 "engagement_7": services.engagement_stats(days=7),
                 "engagement_30": services.engagement_stats(days=30),
                 "timeseries": services.plays_timeseries(days=30),
+                "hourly": services.listens_by_hour(days=30),
+                "funnel": services.completion_funnel(days=30),
                 "artist_leaderboard": services.leaderboard_artists(limit=10, days=30),
                 "playlists": with_playlist_counters(
                     Playlist.objects.filter(visibility=Playlist.Visibility.PUBLIC)
@@ -565,6 +572,8 @@ class DashboardDataView(StaffOnlyMixin, TemplateView):
                 "engagement": services.engagement_stats(days=min(days, 30)),
                 "growth": services.growth_series(days=days),
                 "timeseries": services.plays_timeseries(days=min(days, 30)),
+                "hourly": services.listens_by_hour(days=min(days, 30)),
+                "funnel": services.completion_funnel(days=min(days, 30)),
                 "top_tracks": [
                     {
                         "id": track.id,
@@ -579,3 +588,180 @@ class DashboardDataView(StaffOnlyMixin, TemplateView):
                 "genre_distribution": services.genre_distribution(),
             }
         )
+
+
+# ---------------------------------------------------------------------------
+# Artist studio — onboarding and self-service for artist accounts.
+# ---------------------------------------------------------------------------
+
+
+def _studio_artist(request, *, require_owned: bool = True):
+    """The artist profile this request may manage.
+
+    Staff may open any artist via ``?artist=``; artists get their owned
+    profiles. Returns ``None`` when the user does not manage anyone, and raises
+    ``PermissionDenied`` when they try to touch a profile they do not own.
+    """
+    user = request.user
+    artist = None
+    if user.is_admin_staff:
+        pk = request.GET.get("artist") or request.POST.get("artist")
+        if pk:
+            artist = get_object_or_404(Artist, pk=pk)
+    if artist is None:
+        artist = Artist.objects.filter(owner=user).order_by("name").first()
+    if artist is None:
+        return None
+    if require_owned and artist.owner_id != user.pk and not user.is_admin_staff:
+        raise PermissionDenied("You can only manage your own artist profiles.")
+    return artist
+
+
+class StudioAccessMixin(LoginRequiredMixin):
+    """Any signed-in account may reach the studio; page-level checks decide."""
+
+
+class StudioHomeView(StudioAccessMixin, TemplateView):
+    template_name = "dashboard/studio.html"
+    active_nav = "studio"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = self.active_nav
+        artist = _studio_artist(self.request, require_owned=False)
+        context["artist"] = artist
+        if artist is None:
+            return context
+
+        from decimal import Decimal
+
+        payouts = ArtistPayout.objects.filter(artist=artist).aggregate(
+            total=Sum("amount"),
+            pending=Sum("amount", filter=Q(status=ArtistPayout.Status.PENDING)),
+        )
+        context.update(
+            {
+                "tracks": (
+                    Track.objects.filter(artist=artist)
+                    .select_related("album")
+                    .annotate(comment_count=Count("comments__id", distinct=True))
+                    .order_by("-created_at")[:50]
+                ),
+                "draft_count": Track.objects.filter(artist=artist, status=Track.Status.DRAFT).count(),
+                "play_count": artist.total_plays,
+                "follower_count": artist.followers.count(),
+                "payouts_total": Decimal(payouts["total"] or 0),
+                "payouts_pending": Decimal(payouts["pending"] or 0),
+            }
+        )
+        return context
+
+
+class StudioClaimView(StudioAccessMixin, FormView):
+    """Onboarding: create a new artist profile or claim an unclaimed one."""
+
+    template_name = "dashboard/studio_claim.html"
+    form_class = ArtistClaimForm
+
+    def get_success_url(self):
+        return reverse_lazy("dashboard:studio")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = "studio"
+        context["claimable"] = (Artist.objects.filter(owner__isnull=True).count())
+        return context
+
+    def form_valid(self, form):
+        cleaned = form.cleaned_data
+        if cleaned["mode"] == "create":
+            artist = Artist.objects.create(
+                name=cleaned["name"].strip(),
+                country=cleaned.get("country", "") or "",
+                website=cleaned.get("website", "") or "",
+                bio=cleaned.get("bio", "") or "",
+                owner=self.request.user,
+            )
+        else:
+            artist = cleaned["existing_artist"]
+            if artist.owner_id not in (None, self.request.user.pk):
+                form.add_error(
+                    None,
+                    "That profile was claimed by someone else in the meantime. Refresh and pick again.",
+                )
+                return self.form_invalid(form)
+            artist.owner = self.request.user
+            artist.save(update_fields=["owner"])
+        messages.success(
+            self.request,
+            f"You now manage “{artist.name}”. Finish your profile to complete onboarding.",
+        )
+        return super().form_valid(form)
+
+
+class StudioProfileView(StudioAccessMixin, FormView):
+    template_name = "dashboard/studio_profile.html"
+    form_class = ArtistProfileForm
+    active_nav = "studio"
+
+    def get_success_url(self):
+        return reverse_lazy("dashboard:studio")
+
+    def get_artist(self):
+        artist = _studio_artist(self.request, require_owned=True)
+        if artist is None:
+            raise PermissionDenied("Create or claim an artist profile first.")
+        return artist
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["instance"] = self.get_artist()
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = self.active_nav
+        context["artist"] = self.get_artist()
+        return context
+
+    def form_valid(self, form):
+        artist = form.save()
+        messages.success(self.request, f"“{artist.name}” profile updated.")
+        return super().form_valid(form)
+
+
+class StudioUploadView(StudioAccessMixin, FormView):
+    template_name = "dashboard/studio_upload.html"
+    form_class = StudioTrackUploadForm
+    active_nav = "studio"
+
+    def get_success_url(self):
+        return reverse_lazy("dashboard:studio")
+
+    def get_artist(self):
+        artist = _studio_artist(self.request, require_owned=True)
+        if artist is None:
+            raise PermissionDenied("Create or claim an artist profile first.")
+        return artist
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["artist"] = self.get_artist()
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["active_nav"] = self.active_nav
+        context["artist"] = self.get_artist()
+        context["genres"] = Genre.objects.order_by("name")
+        return context
+
+    def form_valid(self, form):
+        track = form.save()
+        if not self.request.user.is_admin_staff and track.status == Track.Status.PUBLISHED:
+            # A non-staff artist cannot self-publish: the upload lands as a
+            # draft for staff review, matching the public API behaviour.
+            track.status = Track.Status.DRAFT
+            track.save(update_fields=["status"])
+        messages.success(self.request, f"“{track.title}” uploaded and saved as a draft.")
+        return super().form_valid(form)

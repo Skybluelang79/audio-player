@@ -593,3 +593,15 @@ a.shelf__more:hover { color: var(--cyan); text-decoration: none; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; font-size: 0.82rem; }
 .pagination a { color: var(--cyan); }
 .pagination a:hover { text-decoration: none; }
+
+/* --- lyrics ------------------------------------------------------------- */
+
+.lyrics { color: var(--text-dim); font-size: 0.95rem; line-height: 1.5; }
+.lyrics__line { margin: 0 0 2px; padding: 2px 8px; border-radius: 6px; transition: color 0.15s ease, background 0.15s ease; }
+.lyrics--synced { max-height: 24rem; overflow-y: auto; scroll-behavior: smooth; }
+.lyrics--synced .lyrics__line { color: var(--text-faint); }
+.lyrics--synced .lyrics__line.is-active {
+  color: var(--text);
+  background: rgba(0, 229, 255, 0.1);
+  box-shadow: inset 2px 0 0 var(--cyan);
+}

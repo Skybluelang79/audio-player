@@ -2,13 +2,13 @@
 
 from django.conf import settings
 from django.core import signing
-from django.db.models import Count
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import AllowAny, IsAuthenticated, SAFE_METHODS
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -264,6 +264,46 @@ class TrackViewSet(viewsets.ModelViewSet):
             )
         Track.objects.filter(pk=track.pk).update(download_count=F("download_count") + 1)
         return response
+
+    @extend_schema(
+        tags=["tracks"],
+        responses={200: None},
+        summary="HLS playback manifest",
+        description=(
+            "Reports whether the track has been packaged for adaptive streaming "
+            "and, when it has, returns the URL of its master playlist. Sub-playlists "
+            "and segments hang off the same `hls/` route."
+        ),
+    )
+    @action(detail=True, methods=["get"])
+    def hls(self, request, pk=None):
+        from . import hls
+
+        track = get_object_or_404(self.get_queryset().select_related("artist"), pk=pk)
+        enabled = hls.hls_enabled()
+        ready = enabled and hls.master_exists(track)
+
+        master_url = None
+        if ready:
+            master_path = reverse(
+                "api:track-hls-file", kwargs={"pk": track.pk, "path": hls.MASTER_NAME}
+            )
+            master_url = request.build_absolute_uri(master_path)
+            if settings.STREAM_REQUIRE_AUTH:
+                from .streaming import sign_stream_token
+
+                master_url = f"{master_url}?token={sign_stream_token(track)}"
+
+        return Response(
+            {
+                "track_id": track.id,
+                "enabled": enabled,
+                "ready": ready,
+                "master_url": master_url,
+                "variants": hls.parse_variants() if enabled else [],
+                "generated_at": track.hls_generated_at,
+            }
+        )
 
     @extend_schema(
         tags=["tracks"],
@@ -666,3 +706,41 @@ class TrackSearchView(APIView):
         return Response(
             TrackListSerializer(filterset.qs.distinct()[:50], many=True, context={"request": request}).data
         )
+
+
+@extend_schema(exclude=True)
+def track_hls_file(request, pk, path):
+    """Serve one packaged HLS asset (master/variant playlist or a segment).
+
+    Playlists are text, so relative references have the caller's query string
+    (and therefore the signed token) stitched onto them before they are sent.
+    Every path is confined to the track's own HLS directory.
+    """
+    from django.http import FileResponse, Http404, HttpResponse
+
+    from . import hls
+    from .streaming import verify_stream_token
+
+    queryset = Track.objects.exclude(hls_playlist="")
+    if not TrackViewSet._is_staff(request):
+        queryset = queryset.filter(status=Track.Status.PUBLISHED)
+    track = get_object_or_404(queryset, pk=pk)
+
+    if settings.STREAM_REQUIRE_AUTH and not request.user.is_authenticated:
+        try:
+            signed_pk = verify_stream_token(request.GET.get("token", ""))
+        except (signing.SignatureExpired, signing.BadSignature):
+            return HttpResponse(status=status.HTTP_403_FORBIDDEN)
+        if str(signed_pk) != str(pk):
+            return HttpResponse(status=status.HTTP_403_FORBIDDEN)
+
+    resolved = hls.safe_hls_path(track, path)
+    if resolved is None:
+        raise Http404("HLS asset not found.")
+
+    content_type = hls.content_type_for(path)
+    if content_type == hls.CONTENT_TYPES[".m3u8"]:
+        body = resolved.read_text(encoding="utf-8")
+        body = hls.rewrite_playlist_uris(body, request.META.get("QUERY_STRING", ""))
+        return HttpResponse(body, content_type=content_type)
+    return FileResponse(resolved.open("rb"), content_type=content_type)

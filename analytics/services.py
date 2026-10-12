@@ -7,8 +7,8 @@ top-N window.
 
 from datetime import timedelta
 
-from django.db.models import Avg, Count, F, Q, Sum
-from django.db.models.functions import TruncDate
+from django.db.models import Avg, Count, Q, Sum
+from django.db.models.functions import TruncDate, TruncHour
 from django.utils import timezone
 
 from analytics.models import PlayEvent
@@ -193,6 +193,61 @@ def leaderboard_artists(limit: int = 10, days: int = 30):
         )
         .order_by("-window_plays", "-total_plays_sum")[:limit]
     )
+
+
+def listens_by_hour(days: int = 30) -> list[dict]:
+    """Play counts bucketed by hour of day (0–23), zero-filled.
+
+    Times are grouped in the active timezone so the buckets line up with the
+    wall-clock hours listeners actually experienced.
+    """
+    cutoff = timezone.now() - timedelta(days=days)
+    rows = (
+        PlayEvent.objects.filter(played_at__gte=cutoff)
+        .annotate(hour=TruncHour("played_at"))
+        .values("hour")
+        .annotate(plays=Count("id"), listeners=Count("user", filter=Q(user__isnull=False), distinct=True))
+        .order_by()
+    )
+    by_hour = {}
+    tz = timezone.get_current_timezone()
+    for row in rows:
+        local = timezone.localtime(row["hour"], tz)
+        bucket = by_hour.setdefault(local.hour, {"plays": 0, "listeners": 0})
+        bucket["plays"] += row["plays"]
+        bucket["listeners"] += row["listeners"]
+    return [
+        {
+            "hour": hour,
+            "label": f"{hour:02d}:00",
+            "plays": by_hour.get(hour, {}).get("plays", 0),
+            "listeners": by_hour.get(hour, {}).get("listeners", 0),
+        }
+        for hour in range(24)
+    ]
+
+
+def completion_funnel(days: int = 30) -> dict:
+    """How far plays get through the listener journey in the window.
+
+    Stages are cumulative and monotonic so the chart reads as a funnel rather
+    than a set of unrelated counters.
+    """
+    cutoff = timezone.now() - timedelta(days=days)
+    recent = PlayEvent.objects.filter(played_at__gte=cutoff)
+    started = recent.count()
+    identified = recent.exclude(user__isnull=True).values("user").distinct().count()
+    tracks = recent.values("track").distinct().count()
+    completed = recent.filter(completed=True).count()
+    return {
+        "window_days": days,
+        "stages": [
+            {"stage": "Plays", "value": started},
+            {"stage": "Signed-in", "value": identified},
+            {"stage": "Distinct tracks", "value": tracks},
+            {"stage": "Completed", "value": completed},
+        ],
+    }
 
 
 def new_content_series(days: int = 14) -> list[dict]:

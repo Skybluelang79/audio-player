@@ -1,6 +1,7 @@
 """Listening telemetry: raw play events plus rollup tables for dashboards."""
 
 import uuid
+from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
@@ -112,6 +113,58 @@ class ArtistListenerSnapshot(models.Model):
 
     def __str__(self):
         return f"{self.artist_id} {self.month:%Y-%m}: {self.monthly_listeners}"
+
+
+class ArtistPayout(models.Model):
+    """One artist's earnings for one period, frozen when generated.
+
+    The play count and rate are snapshotted so a later rate change never
+    rewrites history; ``amount`` is the quantised product of the two.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        PAID = "paid", "Paid"
+        FAILED = "failed", "Failed"
+
+    class Method(models.TextChoices):
+        BANK = "bank", "Bank transfer"
+        PAYPAL = "paypal", "PayPal"
+        STRIPE = "stripe", "Stripe"
+        OTHER = "other", "Other"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    artist = models.ForeignKey("music.Artist", related_name="payouts", on_delete=models.CASCADE)
+    period_start = models.DateField()
+    period_end = models.DateField()
+    plays = models.PositiveIntegerField(default=0)
+    rate_per_play = models.DecimalField(max_digits=8, decimal_places=5, default=Decimal("0.00400"))
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    status = models.CharField(
+        max_length=12, choices=Status.choices, default=Status.PENDING, db_index=True
+    )
+    method = models.CharField(max_length=12, choices=Method.choices, default=Method.BANK)
+    reference = models.CharField(max_length=120, blank=True)
+    note = models.TextField(blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "analytics_artist_payout"
+        ordering = ("-period_end", "-amount")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["artist", "period_start", "period_end"], name="uniq_artist_payout_period"
+            )
+        ]
+        indexes = [models.Index(fields=["status", "-period_end"])]
+        verbose_name = "artist payout"
+        verbose_name_plural = "artist payouts"
+
+    def __str__(self):
+        return f"{self.artist_id} {self.period_start}..{self.period_end}: {self.amount}"
 
 
 def register_play(

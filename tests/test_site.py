@@ -197,6 +197,34 @@ class RelatedTracksTests(CatalogMixin, MediaRootMixin, TestCase):
         self.assertEqual(response.status_code, 200)
 
 
+class LyricsPanelTests(CatalogMixin, MediaRootMixin, TestCase):
+    """The track page renders lyrics for the player's synced-line highlighting."""
+
+    def test_plain_lyrics_render_without_timing(self):
+        self.live_track.lyrics = "Hello\nWorld"
+        self.live_track.save(update_fields=["lyrics"])
+        response = self.client.get(self.live_track.get_absolute_url())
+
+        self.assertContains(response, 'data-lyrics-synced="0"')
+        self.assertContains(response, "Hello")
+        self.assertContains(response, "World")
+        self.assertNotContains(response, "data-lyrics-time")
+
+    def test_synced_lyrics_emit_timestamps_and_hide_raw_tags(self):
+        self.live_track.lyrics = "[00:01.00]Hello\n[00:04.50]World"
+        self.live_track.save(update_fields=["lyrics"])
+        response = self.client.get(self.live_track.get_absolute_url())
+
+        self.assertContains(response, 'data-lyrics-synced="1"')
+        self.assertContains(response, 'data-lyrics-time="1.0"')
+        self.assertContains(response, 'data-lyrics-time="4.5"')
+        self.assertNotContains(response, "[00:01.00]")
+
+    def test_no_lyrics_means_no_panel(self):
+        response = self.client.get(self.live_track.get_absolute_url())
+        self.assertNotContains(response, "data-lyrics-track-id")
+
+
 class ManifestTests(CatalogMixin, MediaRootMixin, TestCase):
     """``/player/manifest/`` feeds the <audio> element its source URLs."""
 

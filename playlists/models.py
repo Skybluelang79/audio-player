@@ -290,10 +290,10 @@ def trending_playlists(days: int = 7, limit: int = 10):
                 filter=Q(tracks__play_events__played_at__gte=cutoff),
                 distinct=True,
             ),
-            follower_count=Count("followers", distinct=True),
+            followers_total=Count("followers", distinct=True),
         )
         .filter(window_plays__gt=0)
-        .order_by("-window_plays", "-follower_count")[:limit]
+        .order_by("-window_plays", "-followers_total")[:limit]
     )
 
 

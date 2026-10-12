@@ -1,0 +1,117 @@
+{% extends "dashboard/studio_base.html" %}
+
+{% block title %}Upload · Artist Studio · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}Upload a track{% endblock %}
+{% block page_meta %}releasing under {{ artist.name }}{% endblock %}
+
+{% block content %}
+
+<div class="grid grid--wide-right">
+
+  <section class="panel">
+    <div class="panel__head">
+      <div class="panel__title">Upload a track</div>
+      <div class="panel__hint">saved as a draft for review</div>
+    </div>
+    <div class="panel__body">
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="messages"><li class="error">{{ form.non_field_errors|striptags }}</li></div>
+        {% endif %}
+
+        <div class="field {% if form.title.errors %}field-error{% endif %}">
+          <label for="{{ form.title.id_for_label }}">Title *</label>
+          {{ form.title }}
+          {% if form.title.errors %}<ul class="errorlist">{% for e in form.title.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="{{ form.album.id_for_label }}">Album</label>
+            {{ form.album }}
+          </div>
+          <div class="field">
+            <label for="{{ form.track_number.id_for_label }}">Track no.</label>
+            {{ form.track_number }}
+          </div>
+        </div>
+
+        <div class="field {% if form.audio_file.errors %}field-error{% endif %}">
+          <label for="{{ form.audio_file.id_for_label }}">Audio file *</label>
+          {{ form.audio_file }}
+          {% if form.audio_file.errors %}<ul class="errorlist">{% for e in form.audio_file.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+
+        <div class="field {% if form.cover_image.errors %}field-error{% endif %}">
+          <label for="{{ form.cover_image.id_for_label }}">Cover art</label>
+          {{ form.cover_image }}
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="{{ form.duration_seconds.id_for_label }}">Duration (s)</label>
+            {{ form.duration_seconds }}
+          </div>
+          <div class="field">
+            <label for="{{ form.release_date.id_for_label }}">Release date</label>
+            {{ form.release_date }}
+          </div>
+          <div class="field">
+            <label for="{{ form.isrc.id_for_label }}">ISRC</label>
+            {{ form.isrc }}
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="{{ form.genres.id_for_label }}">Genres</label>
+          {{ form.genres }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.lyrics.id_for_label }}">Lyrics</label>
+          {{ form.lyrics }}
+        </div>
+
+        <div class="field form-check {% if form.consent.errors %}field-error{% endif %}">
+          {{ form.consent }}
+          <label for="{{ form.consent.id_for_label }}">{{ form.consent.label }}</label>
+          {% if form.consent.errors %}<ul class="errorlist">{% for e in form.consent.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+
+        <div class="row" style="margin-top:18px">
+          <button class="btn btn--primary" type="submit">⇪ Upload track</button>
+          <a class="btn btn--ghost" href="{% url 'dashboard:studio' %}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <div class="stack">
+    <section class="panel">
+      <div class="panel__head"><div class="panel__title">Where does this go?</div></div>
+      <div class="panel__body">
+        <ol class="stack dim text-sm" style="padding-left:18px;gap:10px;margin:0">
+          <li>Uploads are saved under <code class="mono">audio/…</code> with a randomised name.</li>
+          <li>New tracks start as <span class="chip chip--amber">Draft</span> and stay hidden until staff publish them.</li>
+          <li>Once published, the track appears on <a href="{{ artist.get_absolute_url }}" target="_blank" rel="noopener">your public page</a>.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head"><div class="panel__title">Accepted formats</div></div>
+      <div class="panel__body">
+        <div class="stack text-sm dim" style="gap:8px">
+          <div><span class="chip chip--cyan">Audio</span> mp3 · m4a · aac · wav · flac · ogg · opus · wma · aiff</div>
+          <div><span class="chip chip--violet">Cover</span> jpg · png · webp · gif · bmp · avif</div>
+          <div class="muted text-xs">Uploads are capped server-side. Oversized files are rejected before storage.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+</div>
+
+{% endblock %}
