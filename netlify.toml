@@ -1,0 +1,11 @@
+﻿[build]
+  # Build static files only; Django app itself won't run on Netlify
+  command = "python manage.py collectstatic --noinput"
+  publish = "staticfiles"
+
+[build.environment]
+  PYTHON_VERSION = "3.13"
+
+# Note: This is a server-rendered Django app. For full functionality,
+# deploy the API/backend to a platform that runs WSGI (Koyeb, Render, Railway)
+# and point your frontend to it.
