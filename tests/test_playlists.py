@@ -2,6 +2,7 @@
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
 from rest_framework.test import APIClient
 
 from music.models import Track
@@ -397,3 +398,153 @@ class PlayEventModelTests(PlaylistFixtureMixin, TestCase):
 
         event = register_play(self.live_track, user=self.owner, completed=False)
         self.assertFalse(event.completed)
+
+
+class PlaylistWebUiTests(PlaylistFixtureMixin, TestCase):
+    """The server-rendered playlist editor mirrors the API's permission rules."""
+
+    def setUp(self):
+        from playlists.models import Playlist
+
+        self.playlist = Playlist.objects.create(
+            name="Road Trip", owner=self.owner, visibility=Playlist.Visibility.PRIVATE
+        )
+
+    # -- create --------------------------------------------------------------
+
+    def test_create_requires_login(self):
+        response = self.client.get(reverse("playlists:create"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
+
+    def test_create_makes_logged_in_user_the_owner(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("playlists:create"),
+            {"name": "Fresh", "visibility": "public", "description": ""},
+        )
+        self.assertEqual(response.status_code, 302)
+        created = self.owner.playlists.get(name="Fresh")
+        self.assertEqual(created.owner, self.owner)
+        self.assertEqual(created.visibility, "public")
+        self.assertEqual(response["Location"], created.get_absolute_url())
+
+    # -- edit ----------------------------------------------------------------
+
+    def test_stranger_cannot_open_editor(self):
+        self.client.force_login(self.other)
+        response = self.client.get(
+            reverse("playlists:edit", kwargs={"slug": self.playlist.slug})
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_stranger_cannot_rename_by_post(self):
+        self.client.force_login(self.other)
+        response = self.client.post(
+            reverse("playlists:edit", kwargs={"slug": self.playlist.slug}),
+            {"name": "Hijacked", "visibility": "private"},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.playlist.refresh_from_db()
+        self.assertEqual(self.playlist.name, "Road Trip")
+
+    def test_collaborator_can_edit(self):
+        self.playlist.collaborators.add(self.other)
+        self.client.force_login(self.other)
+        response = self.client.post(
+            reverse("playlists:edit", kwargs={"slug": self.playlist.slug}),
+            {"name": "Shared Edit", "visibility": "unlisted", "description": ""},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.playlist.refresh_from_db()
+        self.assertEqual(self.playlist.name, "Shared Edit")
+        self.assertEqual(self.playlist.visibility, "unlisted")
+
+    # -- delete --------------------------------------------------------------
+
+    def test_collaborator_cannot_delete(self):
+        self.playlist.collaborators.add(self.other)
+        self.client.force_login(self.other)
+        response = self.client.get(
+            reverse("playlists:delete", kwargs={"slug": self.playlist.slug})
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_owner_deletes_playlist(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("playlists:delete", kwargs={"slug": self.playlist.slug})
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(type(self.playlist).objects.filter(pk=self.playlist.pk).exists())
+
+    # -- track management ----------------------------------------------------
+
+    def test_manage_is_private_to_editors(self):
+        self.client.force_login(self.other)
+        response = self.client.get(
+            reverse("playlists:manage", kwargs={"slug": self.playlist.slug})
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_owner_adds_and_removes_a_track(self):
+        from playlists.models import PlaylistTrack
+
+        self.client.force_login(self.owner)
+        manage_url = reverse("playlists:manage", kwargs={"slug": self.playlist.slug})
+
+        response = self.client.post(
+            manage_url, {"action": "add", "track_id": self.live_track.pk}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            PlaylistTrack.objects.filter(
+                playlist=self.playlist, track=self.live_track
+            ).exists()
+        )
+
+        response = self.client.post(
+            manage_url, {"action": "remove", "track_id": self.live_track.pk}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            PlaylistTrack.objects.filter(
+                playlist=self.playlist, track=self.live_track
+            ).exists()
+        )
+
+    def test_manage_only_adds_published_tracks(self):
+        from playlists.models import PlaylistTrack
+
+        self.client.force_login(self.owner)
+        self.client.post(
+            reverse("playlists:manage", kwargs={"slug": self.playlist.slug}),
+            {"action": "add", "track_id": self.draft_track.pk},
+        )
+        self.assertFalse(
+            PlaylistTrack.objects.filter(
+                playlist=self.playlist, track=self.draft_track
+            ).exists()
+        )
+
+    def test_manage_search_lists_matches(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse("playlists:manage", kwargs={"slug": self.playlist.slug}),
+            {"q": "Glass"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Glass Cities")
+
+    def test_detail_shows_editor_controls_to_owner(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(self.playlist.get_absolute_url())
+        self.assertContains(response, reverse("playlists:manage", kwargs={"slug": self.playlist.slug}))
+        self.assertContains(response, "You can edit this")
+
+    def test_detail_hides_editor_controls_from_strangers(self):
+        self.playlist.visibility = "public"
+        self.playlist.save(update_fields=["visibility"])
+        self.client.force_login(self.other)
+        response = self.client.get(self.playlist.get_absolute_url())
+        self.assertNotContains(response, "You can edit this")

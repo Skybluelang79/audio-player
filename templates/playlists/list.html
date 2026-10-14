@@ -10,6 +10,11 @@
       <span class="chip chip--magenta">Playlists</span>
       <h1 class="detail__title">Playlists</h1>
       <p class="detail__meta mono">{{ playlists|length }} public</p>
+      {% if user.is_authenticated %}
+        <div class="detail__actions">
+          <a class="btn btn--primary" href="{% url 'playlists:create' %}">New playlist</a>
+        </div>
+      {% endif %}
     </div>
   </header>
 

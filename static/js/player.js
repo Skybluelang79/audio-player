@@ -60,6 +60,15 @@
     return match ? decodeURIComponent(match[1]) : "";
   }
 
+  /* Adaptive streaming (HLS) is only used when the browser can play it
+   * natively. That covers Safari and iOS, which is where it matters most;
+   * every other engine falls back to the progressive MP3 the manifest also
+   * carries, so no hls.js dependency is needed. */
+  function canPlayNativeHls() {
+    return !!(audio && audio.canPlayType &&
+      audio.canPlayType("application/vnd.apple.mpegurl") !== "");
+  }
+
   /* --- preferences -------------------------------------------------------- */
 
   function loadPrefs() {
@@ -158,6 +167,7 @@
             artist: row.artist,
             artistSlug: row.artist_slug,
             url: row.url,
+            hlsUrl: row.hls_url || "",
             cover: row.cover,
             duration: row.duration_seconds || 0,
             isFavorite: !!row.is_favorite,
@@ -199,7 +209,9 @@
     // Each load starts a new listen, so re-arm play reporting.
     state.reportedTrackId = null;
 
-    audio.src = track.url;
+    // Prefer the adaptive HLS rendition when the track has one and this
+    // browser can play it; otherwise use the progressive source.
+    audio.src = (track.hlsUrl && canPlayNativeHls()) ? track.hlsUrl : track.url;
     audio.load();
 
     renderNowPlaying();
@@ -634,6 +646,7 @@
             artist: row.artist,
             artistSlug: row.artist_slug,
             url: row.url,
+            hlsUrl: row.hls_url || "",
             cover: row.cover,
             duration: row.duration_seconds || 0,
             pageUrl: row.track_slug ? "/tracks/" + row.track_slug + "/" : ""

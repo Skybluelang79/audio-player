@@ -34,6 +34,7 @@
       <div class="detail__actions">
         {% if user.is_authenticated %}
           {% if is_self %}
+            <a class="btn btn--primary" href="{% url 'accounts:profile-edit' %}">Edit profile</a>
             <a class="btn btn--ghost" href="{% url 'music:library' %}">Your library</a>
           {% else %}
             <button class="btn btn--ghost" type="button" data-follow-user="{{ profile_user.id }}"

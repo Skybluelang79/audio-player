@@ -1,0 +1,52 @@
+{% extends "site_base.html" %}
+
+{% block title %}Edit profile · {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<h1 class="detail__title">Edit your profile</h1>
+
+<form class="auth-form" method="post" enctype="multipart/form-data" novalidate>
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <ul class="errorlist">{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  <div class="field {% if form.display_name.errors %}field-error{% endif %}">
+    <label for="{{ form.display_name.id_for_label }}">Display name</label>
+    {{ form.display_name }}
+    {% if form.display_name.errors %}<ul class="errorlist">{% for error in form.display_name.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+
+  <div class="field {% if form.bio.errors %}field-error{% endif %}">
+    <label for="{{ form.bio.id_for_label }}">Bio</label>
+    {{ form.bio }}
+    {% if form.bio.errors %}<ul class="errorlist">{% for error in form.bio.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+
+  <div class="field {% if form.country.errors %}field-error{% endif %}">
+    <label for="{{ form.country.id_for_label }}">Country</label>
+    {{ form.country }}
+    {% if form.country.errors %}<ul class="errorlist">{% for error in form.country.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+
+  {% if user.avatar %}
+    <div class="field">
+      <span class="helptext">Current photo</span>
+      <img class="art art--round" src="{{ user.avatar.url }}" alt="" width="96" height="96">
+    </div>
+  {% endif %}
+
+  <div class="field {% if form.avatar.errors %}field-error{% endif %}">
+    <label for="{{ form.avatar.id_for_label }}">Profile photo</label>
+    {{ form.avatar }}
+    {% if form.avatar.errors %}<ul class="errorlist">{% for error in form.avatar.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+    <span class="helptext">Square works best — jpg · png · webp.</span>
+  </div>
+
+  <div class="detail__actions">
+    <button class="btn btn--primary" type="submit">Save profile</button>
+    <a class="btn btn--ghost" href="{% url 'accounts:profile' user.id %}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

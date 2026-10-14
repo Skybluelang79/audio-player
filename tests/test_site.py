@@ -5,7 +5,7 @@ ever shows published tracks, and that private playlists stay unguessable.
 """
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from music.models import Album, Artist, Genre, Track
@@ -294,6 +294,55 @@ class ManifestTests(CatalogMixin, MediaRootMixin, TestCase):
         response = self.client.get(reverse("music:track-manifest"), {"ids": str(self.live_track.pk)})
         rows = {row["id"]: row for row in response.json()["tracks"]}
         self.assertFalse(rows[str(self.live_track.pk)]["is_favorite"])
+
+    def test_manifest_omits_hls_when_packaging_is_off(self):
+        response = self.client.get(reverse("music:track-manifest"), {"ids": str(self.live_track.pk)})
+        row = response.json()["tracks"][0]
+        self.assertEqual(row["hls_url"], "")
+
+    @override_settings(HLS_ENABLED=True)
+    def test_manifest_advertises_hls_master_for_packaged_track(self):
+        from pathlib import Path
+
+        from django.core.files.storage import default_storage
+
+        from music import hls
+        from music.hls import build_master, master_rel
+
+        base = Path(default_storage.path(hls.hls_dir_rel(self.live_track)))
+        base.mkdir(parents=True, exist_ok=True)
+        (base / "master.m3u8").write_text(build_master([128]), encoding="utf-8")
+        self.live_track.hls_playlist = master_rel(self.live_track)
+        self.live_track.save(update_fields=["hls_playlist"])
+
+        response = self.client.get(reverse("music:track-manifest"), {"ids": str(self.live_track.pk)})
+        row = response.json()["tracks"][0]
+        self.assertIn("/hls/master.m3u8", row["hls_url"])
+
+    @override_settings(HLS_ENABLED=True)
+    def test_manifest_omits_hls_when_track_is_not_packaged(self):
+        response = self.client.get(reverse("music:track-manifest"), {"ids": str(self.live_track.pk)})
+        row = response.json()["tracks"][0]
+        self.assertEqual(row["hls_url"], "")
+
+    @override_settings(HLS_ENABLED=True, STREAM_REQUIRE_AUTH=True)
+    def test_manifest_hls_url_is_signed_when_streaming_is_gated(self):
+        from pathlib import Path
+
+        from django.core.files.storage import default_storage
+
+        from music import hls
+        from music.hls import build_master, master_rel
+
+        base = Path(default_storage.path(hls.hls_dir_rel(self.live_track)))
+        base.mkdir(parents=True, exist_ok=True)
+        (base / "master.m3u8").write_text(build_master([128]), encoding="utf-8")
+        self.live_track.hls_playlist = master_rel(self.live_track)
+        self.live_track.save(update_fields=["hls_playlist"])
+
+        response = self.client.get(reverse("music:track-manifest"), {"ids": str(self.live_track.pk)})
+        row = response.json()["tracks"][0]
+        self.assertIn("token=", row["hls_url"])
 
     def test_player_markup_exposes_auth_state(self):
         """player.js reads #player's data-authenticated to show the heart."""

@@ -532,3 +532,65 @@ class MediaLoginTests(MediaRootMixin, TestCase):
         response = self.client.get(reverse("login"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Staff sign in")
+
+
+class ProfileWebEditTests(TestCase):
+    """The profile editor only ever touches ``request.user``'s public fields."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="listener@example.com", password=PASSWORD, display_name="Nova"
+        )
+        self.edit_url = reverse("accounts:profile-edit")
+
+    def test_requires_login(self):
+        response = self.client.get(self.edit_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
+
+    def test_profile_page_offers_edit_link_to_owner(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("accounts:profile", kwargs={"pk": self.user.pk})
+        )
+        self.assertContains(response, self.edit_url)
+
+    def test_updates_public_fields(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.edit_url,
+            {"display_name": "Nova K", "bio": "Synths & rain.", "country": "DE"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.display_name, "Nova K")
+        self.assertEqual(self.user.bio, "Synths & rain.")
+        self.assertEqual(self.user.country, "DE")
+
+    def test_privileged_fields_are_ignored(self):
+        self.client.force_login(self.user)
+        self.client.post(
+            self.edit_url,
+            {
+                "display_name": "Nova",
+                "bio": "",
+                "country": "",
+                "role": User.Role.MANAGER,
+                "is_staff": "on",
+                "email": "changed@example.com",
+            },
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, User.Role.LISTENER)
+        self.assertFalse(self.user.is_staff)
+        self.assertEqual(self.user.email, "listener@example.com")
+
+    def test_redirects_to_own_profile(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.edit_url, {"display_name": "Nova", "bio": "", "country": ""}
+        )
+        self.assertEqual(
+            response["Location"],
+            reverse("accounts:profile", kwargs={"pk": self.user.pk}),
+        )

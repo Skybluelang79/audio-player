@@ -45,7 +45,14 @@
             </button>
           {% endif %}
         {% endif %}
-        {% if can_edit %}<span class="chip chip--lime">You can edit this</span>{% endif %}
+        {% if can_edit %}
+          <a class="btn btn--ghost" href="{% url 'playlists:manage' playlist.slug %}">Manage tracks</a>
+          <a class="btn btn--ghost" href="{% url 'playlists:edit' playlist.slug %}">Edit</a>
+          {% if playlist.owner_id == user.id or user.is_superuser %}
+            <a class="btn btn--ghost" href="{% url 'playlists:delete' playlist.slug %}">Delete</a>
+          {% endif %}
+          <span class="chip chip--lime">You can edit this</span>
+        {% endif %}
       </div>
     </div>
   </header>

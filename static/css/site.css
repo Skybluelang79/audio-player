@@ -579,16 +579,22 @@ a.shelf__more:hover { color: var(--cyan); text-decoration: none; }
 .auth-form { max-width: 420px; margin: 0 auto; display: grid; gap: 14px; }
 .auth-form .field { display: grid; gap: 6px; }
 .auth-form label { font-size: 0.8rem; color: var(--text-dim); }
-.auth-form input {
+.auth-form input,
+.auth-form select,
+.auth-form textarea {
   width: 100%; padding: 10px 12px; border-radius: var(--radius-sm);
   border: 1px solid var(--line); background: rgba(18, 22, 36, 0.9);
   color: var(--text); font-size: 0.9rem;
 }
-.auth-form input:focus { border-color: var(--cyan); outline: none; }
+.auth-form input:focus,
+.auth-form select:focus,
+.auth-form textarea:focus { border-color: var(--cyan); outline: none; }
 .auth-form .hint, .auth-form ul { font-size: 0.78rem; color: var(--text-faint); }
 .auth-form ul { list-style: none; padding: 0; margin: 0; }
 .auth-form .errorlist { color: var(--rose); }
 .auth-form .btn--block { width: 100%; }
+
+.inline-form { display: inline; margin: 0; }
 
 .pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; font-size: 0.82rem; }
 .pagination a { color: var(--cyan); }

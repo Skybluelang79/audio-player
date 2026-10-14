@@ -11,6 +11,7 @@ from . import auth_views, site_views
 app_name = "accounts"
 
 urlpatterns = [
+    path("profile/edit/", site_views.ProfileEditView.as_view(), name="profile-edit"),
     path("profile/<uuid:pk>/", site_views.ProfileView.as_view(), name="profile"),
     path("feed/", site_views.FeedView.as_view(), name="feed"),
     path(

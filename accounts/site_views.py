@@ -5,12 +5,16 @@ The privacy rules match ``music.site_views.visible_playlists``: a profile only
 ever shows playlists the viewer is allowed to see.
 """
 
+from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import DetailView, TemplateView
+from django.urls import reverse
+from django.views.generic import DetailView, TemplateView, UpdateView
 
 from music.models import Track
 from music.site_views import SiteViewMixin, visible_playlists
+
+from .forms import ProfileForm
 
 User = get_user_model()
 
@@ -56,6 +60,28 @@ class ProfileView(SiteViewMixin, DetailView):
                 .distinct()[:20]
             )
         return context
+
+
+class ProfileEditView(LoginRequiredMixin, SiteViewMixin, UpdateView):
+    """A listener edits their own profile.
+
+    There is no pk in the URL: the view only ever operates on ``request.user``,
+    so it is impossible to edit anyone else's account through this page.
+    """
+
+    form_class = ProfileForm
+    template_name = "accounts/profile_form.html"
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def get_success_url(self):
+        return reverse("accounts:profile", kwargs={"pk": self.request.user.pk})
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Profile updated.")
+        return response
 
 
 class FeedView(LoginRequiredMixin, SiteViewMixin, TemplateView):

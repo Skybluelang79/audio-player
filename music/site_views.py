@@ -11,9 +11,11 @@ markup (see ``templates/music/includes/track_table.html``) which
 working without shipping a second JSON payload per page.
 """
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import Count, F, Q
 from django.http import JsonResponse
+from django.urls import reverse
 from django.views.generic import DetailView, ListView, TemplateView
 
 from analytics.search import MIN_QUERY_LENGTH, track_query
@@ -340,6 +342,28 @@ class LibraryView(SiteViewMixin, ListView):
         return context
 
 
+def _hls_url(request, track) -> str:
+    """Absolute master-playlist URL for a packaged track, else ``""``.
+
+    Only advertised when packaging is switched on *and* the track has been
+    transcoded, so the player never requests a 404. Gating mirrors
+    ``music.views.TrackViewSet.hls``: when ``STREAM_REQUIRE_AUTH`` is set the
+    URL carries a signed token, which ``track_hls_file`` stamps onto the
+    relative variant/segment references inside each playlist.
+    """
+    from . import hls
+
+    if not hls.hls_enabled() or not track.hls_playlist:
+        return ""
+    path = reverse("api:track-hls-file", kwargs={"pk": track.pk, "path": hls.MASTER_NAME})
+    url = request.build_absolute_uri(path)
+    if settings.STREAM_REQUIRE_AUTH:
+        from .streaming import sign_stream_token
+
+        url = f"{url}?token={sign_stream_token(track)}"
+    return url
+
+
 def _manifest_entry(request, track):
     return {
         "id": str(track.pk),
@@ -350,6 +374,7 @@ def _manifest_entry(request, track):
         "album_slug": track.album.slug if track.album_id else "",
         "track_slug": track.slug,
         "url": request.build_absolute_uri(track.audio_file.url) if track.audio_file else "",
+        "hls_url": _hls_url(request, track),
         "cover": track.cover_image.url if track.cover_image else "",
         "duration_seconds": track.duration_seconds,
         # Lets the player render the heart in the right state on first play

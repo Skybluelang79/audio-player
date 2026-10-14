@@ -1,4 +1,4 @@
-﻿[build]
+[build]
   # Build static files only; Django app itself won't run on Netlify
   command = "python manage.py collectstatic --noinput"
   publish = "staticfiles"

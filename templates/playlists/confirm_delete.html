@@ -1,0 +1,16 @@
+{% extends "site_base.html" %}
+
+{% block title %}Delete {{ object.name }} · {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<h1 class="detail__title">Delete “{{ object.name }}”?</h1>
+<p class="notice">This removes the playlist for everyone. The tracks themselves are not deleted.</p>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="detail__actions">
+    <button class="btn btn--primary" type="submit">Delete playlist</button>
+    <a class="btn btn--ghost" href="{{ object.get_absolute_url }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}
