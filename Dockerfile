@@ -28,4 +28,4 @@ EXPOSE 8000
 
 # Koyeb provides $PORT (8000 here); migrate on boot because the external
 # database is only reachable at runtime, then hand off to gunicorn.
-CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py ensure_superuser && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"]

@@ -1,8 +1,12 @@
 """Registration, JWT issue/refresh, and profile management."""
 
+import os
 import re
+from io import StringIO
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -594,3 +598,29 @@ class ProfileWebEditTests(TestCase):
             response["Location"],
             reverse("accounts:profile", kwargs={"pk": self.user.pk}),
         )
+
+
+class EnsureSuperuserCommandTests(TestCase):
+    """The boot-time bootstrap keeps a staff login on ephemeral deployments."""
+
+    env = {"SUPERUSER_EMAIL": "boss@example.com", "SUPERUSER_PASSWORD": PASSWORD}
+
+    def test_noop_when_env_unset(self):
+        out = StringIO()
+        call_command("ensure_superuser", stdout=out)
+        self.assertFalse(User.objects.filter(is_superuser=True).exists())
+        self.assertIn("skipping", out.getvalue())
+
+    def test_creates_superuser_from_env(self):
+        with patch.dict(os.environ, self.env):
+            call_command("ensure_superuser")
+        user = User.objects.get(email="boss@example.com")
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.check_password(PASSWORD))
+
+    def test_is_idempotent(self):
+        User.objects.create_superuser(email="boss@example.com", password=PASSWORD)
+        with patch.dict(os.environ, self.env):
+            call_command("ensure_superuser")
+        self.assertEqual(User.objects.filter(email="boss@example.com").count(), 1)
