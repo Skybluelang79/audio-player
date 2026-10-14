@@ -1,61 +1,28 @@
-﻿# Render blueprint: https://render.com/docs/blueprint-spec
-# Free tier: one Free web service + one Free Postgres. Free Postgres expires
-# 30 days after creation, so point POSTGRES_* at Neon for durable data.
-databases:
-  - name: auralis-db
-    databaseName: auralis
-    user: auralis
-    plan: free
-    postgresMajorVersion: "17"
-
+# Render blueprint: https://render.com/docs/blueprint-spec
+# Free tier: one Free web service built from the repo Dockerfile. Free web
+# services have no persistent disk, so the default SQLite database is
+# ephemeral. For durable data, set DB_ENGINE=postgres and POSTGRES_* to a free
+# external database (Neon/Supabase) in the Render dashboard.
 services:
   - type: web
     name: auralis
-    runtime: python
+    runtime: docker
+    dockerfilePath: ./Dockerfile
     plan: free
+    region: oregon
     branch: main
-    buildCommand: >-
-      pip install --no-cache-dir -r requirements.txt &&
-      python manage.py collectstatic --noinput
-    startCommand: >-
-      python manage.py migrate --noinput &&
-      gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     autoDeployTrigger: commit
     healthCheckPath: /healthz/
     envVars:
-      - key: PYTHON_VERSION
-        value: "3.13.7"
       - key: DEBUG
         value: "False"
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings
-      - key: SECURE_SSL_REDIRECT
-        value: "True"
       - key: SECRET_KEY
         generateValue: true
       - key: ALLOWED_HOSTS
         value: ".onrender.com"
       - key: CSRF_TRUSTED_ORIGINS
         value: "https://*.onrender.com"
-      - key: DB_ENGINE
-        value: postgres
-      - key: POSTGRES_HOST
-        fromDatabase:
-          name: auralis-db
-          property: host
-      - key: POSTGRES_PORT
-        fromDatabase:
-          name: auralis-db
-          property: port
-      - key: POSTGRES_USER
-        fromDatabase:
-          name: auralis-db
-          property: user
-      - key: POSTGRES_PASSWORD
-        fromDatabase:
-          name: auralis-db
-          property: password
-      - key: POSTGRES_DB
-        fromDatabase:
-          name: auralis-db
-          property: database
+      - key: SECURE_SSL_REDIRECT
+        value: "True"
