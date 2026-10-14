@@ -1,23 +1,25 @@
 ﻿# Render blueprint: https://render.com/docs/blueprint-spec
+# Free tier: one Free web service + one Free Postgres. Free Postgres expires
+# 30 days after creation, so point POSTGRES_* at Neon for durable data.
 databases:
   - name: auralis-db
     databaseName: auralis
     user: auralis
-    plan: basic-256mb
+    plan: free
     postgresMajorVersion: "17"
 
 services:
   - type: web
     name: auralis
     runtime: python
-    plan: starter
+    plan: free
     branch: main
     buildCommand: >-
       pip install --no-cache-dir -r requirements.txt &&
       python manage.py collectstatic --noinput
     startCommand: >-
       python manage.py migrate --noinput &&
-      gunicorn config.wsgi:application --bind 0.0.0.0: --workers 2 --timeout 120
+      gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     autoDeployTrigger: commit
     healthCheckPath: /healthz/
     envVars:
@@ -29,3 +31,31 @@ services:
         value: config.settings
       - key: SECURE_SSL_REDIRECT
         value: "True"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://*.onrender.com"
+      - key: DB_ENGINE
+        value: postgres
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: auralis-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: auralis-db
+          property: port
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: auralis-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: auralis-db
+          property: password
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: auralis-db
+          property: database
