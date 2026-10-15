@@ -11,14 +11,16 @@ rather than guessing from a failed request.
   <audio id="player-audio" preload="metadata"></audio>
 
   <div class="player__now">
-    <div class="player__art">
-      <img id="player-art" alt="" hidden>
-      <span id="player-art-fallback" class="art art--placeholder" aria-hidden="true">♫</span>
-    </div>
-    <div class="player__meta">
-      <div class="player__title" id="player-title">Nothing playing</div>
-      <div class="player__artist" id="player-artist"></div>
-    </div>
+    <button class="player__expand" type="button" id="player-expand" aria-label="Open now playing view">
+      <span class="player__art">
+        <img id="player-art" alt="" hidden>
+        <span id="player-art-fallback" class="art art--placeholder" aria-hidden="true">♫</span>
+      </span>
+      <span class="player__meta">
+        <span class="player__title" id="player-title">Nothing playing</span>
+        <span class="player__artist" id="player-artist"></span>
+      </span>
+    </button>
     <button class="icon-btn icon-btn--like" type="button" id="player-like" aria-label="Favourite this track" aria-pressed="false" hidden>♥</button>
   </div>
 
@@ -85,3 +87,25 @@ rather than guessing from a failed request.
   </div>
   <ol class="queue__list" id="queue-list"></ol>
 </aside>
+
+{% comment %}
+Track "more" menu. One element, repositioned next to whichever row's ⋯ button
+was pressed; static/js/player.js populates the links from the row's data attrs.
+{% endcomment %}
+<div class="menu" id="track-menu" role="menu" hidden>
+  <button class="menu__item" type="button" role="menuitem" data-menu-play>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg> Play
+  </button>
+  <button class="menu__item" type="button" role="menuitem" data-menu-queue>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h13v2H3zM3 11h13v2H3zM3 16h9v2H3zm15-9v9.6a2.5 2.5 0 101 2V10h3V7z"/></svg> Add to queue
+  </button>
+  <a class="menu__item" role="menuitem" href="#" data-menu-artist hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5 0-9 2.5-9 6v2h18v-2c0-3.5-4-6-9-6z"/></svg> Go to artist
+  </a>
+  <a class="menu__item" role="menuitem" href="#" data-menu-album hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 13a3 3 0 110-6 3 3 0 010 6z"/></svg> Go to album
+  </a>
+  <button class="menu__item" type="button" role="menuitem" data-menu-copy>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4a2 2 0 00-2 2v14h2V3h12zm3 4H8a2 2 0 00-2 2v14a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2zm0 16H8V7h11z"/></svg> Copy link
+  </button>
+</div>

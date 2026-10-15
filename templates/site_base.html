@@ -2,75 +2,170 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <script>
+    (function () {
+      try {
+        var saved = window.localStorage.getItem("auralis.theme");
+        if (saved === "light" || saved === "dark") {
+          document.documentElement.setAttribute("data-theme", saved);
+        }
+      } catch (err) { /* private mode: keep the default theme */ }
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#05060a">
+  <meta name="theme-color" content="#000000">
   <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/site.css' %}">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2300e5ff'/><path d='M9 20V12h3v5h3v-8h3v11h3v-6h2v6z' fill='%2305060a'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%233ecf8e'/><path d='M9 20V12h3v5h3v-8h3v11h3v-6h2v6z' fill='%23041014'/></svg>">
   {% block head %}{% endblock %}
 </head>
 <body class="site{% if player_active %} has-player{% endif %}">
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <header class="topbar">
-    <div class="topbar__inner">
-      <a class="brand" href="{% url 'music:home' %}">
+  <div class="shell">
+    <aside class="sidebar" aria-label="Sidebar">
+      <a class="sidebar__brand brand" href="{% url 'music:home' %}">
         <span class="brand__mark" aria-hidden="true"></span>
-        <span class="brand__name">{{ SITE_NAME }}</span>
+        <span>
+          <span class="brand__name">{{ SITE_NAME }}</span><br>
+          <span class="brand__sub">{{ SITE_TAGLINE }}</span>
+        </span>
       </a>
 
-      <form class="search" action="{% url 'music:search' %}" method="get" role="search">
-        <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 105.3 14l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/></svg>
-        <input type="search" name="q" value="{{ query|default:'' }}" placeholder="Search tracks, artists, albums, playlists" aria-label="Search" autocomplete="off">
-      </form>
-
-      <nav class="topnav" aria-label="Primary">
-        <a class="topnav__link {% if nav_active == 'home' %}is-active{% endif %}" href="{% url 'music:home' %}">Home</a>
-        <a class="topnav__link {% if nav_active == 'browse' %}is-active{% endif %}" href="{% url 'playlists:index' %}">Playlists</a>
-        <a class="topnav__link {% if nav_active == 'genres' %}is-active{% endif %}" href="{% url 'music:home' %}#genres">Genres</a>
-        {% if user.is_authenticated %}
-          <a class="topnav__link {% if nav_active == 'feed' %}is-active{% endif %}" href="{% url 'accounts:feed' %}">Feed</a>
-          <a class="topnav__link {% if nav_active == 'library' %}is-active{% endif %}" href="{% url 'music:library' %}">Library</a>
-          <a class="topnav__link {% if nav_active == 'notifications' %}is-active{% endif %}" href="{% url 'notifications:list' %}">
-            Notices<span class="badge" data-notif-badge hidden>0</span>
+      <div class="sidebar__panel">
+        <nav class="sidenav" aria-label="Primary">
+          <a class="sidenav__link {% if nav_active == 'home' %}is-active{% endif %}" href="{% url 'music:home' %}">
+            <span class="sidenav__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z"/></svg></span>
+            <span class="sidenav__label">Home</span>
           </a>
-          {% if user.is_admin_staff %}
-            <a class="topnav__link" href="{% url 'dashboard:index' %}">Dashboard</a>
+          <a class="sidenav__link {% if nav_active == 'search' %}is-active{% endif %}" href="{% url 'music:search' %}">
+            <span class="sidenav__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 2a8 8 0 105.3 14l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/></svg></span>
+            <span class="sidenav__label">Search</span>
+          </a>
+          <a class="sidenav__link {% if nav_active == 'library' %}is-active{% endif %}" href="{% url 'music:library' %}">
+            <span class="sidenav__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 3h3v18H4zM9 3h3v18H9zM15 3l4 17-2.9.7L12 3.7z"/></svg></span>
+            <span class="sidenav__label">Your Library</span>
+          </a>
+          <a class="sidenav__link {% if nav_active == 'browse' %}is-active{% endif %}" href="{% url 'playlists:index' %}">
+            <span class="sidenav__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h13v2H3zM3 11h13v2H3zM3 16h9v2H3zm15-9v9.6a2.5 2.5 0 101 2V10h3V7z"/></svg></span>
+            <span class="sidenav__label">Playlists</span>
+          </a>
+          <a class="sidenav__link {% if nav_active == 'genres' %}is-active{% endif %}" href="{% url 'music:home' %}#genres">
+            <span class="sidenav__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v2H4zM4 9h7v2H4zM4 14h12v2H4zm0 5h12v2H4zM14 4l6 4-6 4z"/></svg></span>
+            <span class="sidenav__label">Genres</span>
+          </a>
+          {% if user.is_authenticated %}
+            <a class="sidenav__link {% if nav_active == 'feed' %}is-active{% endif %}" href="{% url 'accounts:feed' %}">
+              <span class="sidenav__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v4H4zm0 6h16v4H4zm0 6h10v4H4z"/></svg></span>
+              <span class="sidenav__label">Feed</span>
+            </a>
           {% endif %}
-          <a class="avatar avatar--link" href="{% url 'accounts:profile' user.id %}" title="View your profile">{{ user.initials }}</a>
-          <form method="post" action="{% url 'logout' %}" class="topnav__form">
-            {% csrf_token %}
-            <button class="btn btn--sm btn--ghost" type="submit">Sign out</button>
-          </form>
+        </nav>
+      </div>
+
+      <div class="sidebar__panel sidebar__panel--grow">
+        <div class="sidebar__section">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h3v18H4zM9 3h3v18H9zM15 3l4 17-2.9.7L12 3.7z"/></svg>
+          Your Library
+        </div>
+        {% if user.is_authenticated %}
+          <ul class="sidebar__playlists">
+            <li>
+              <a class="sidebar__playlist" href="{% url 'music:library' %}">
+                <span class="sidebar__playlist-name">♥ Liked Songs</span>
+                <span class="sidebar__playlist-meta">Favourites</span>
+              </a>
+            </li>
+            {% for playlist in sidebar_playlists %}
+              <li>
+                <a class="sidebar__playlist" href="{% url 'playlists:detail' playlist.slug %}">
+                  <span class="sidebar__playlist-name">{{ playlist.name }}</span>
+                  <span class="sidebar__playlist-meta">
+                    Playlist · {{ playlist.owner.display_name|default:"you" }}{% if playlist.sidebar_track_count %} · {{ playlist.sidebar_track_count }} tracks{% endif %}
+                  </span>
+                </a>
+              </li>
+            {% empty %}
+              <li class="sidebar__empty">Create a playlist to see it here.</li>
+            {% endfor %}
+          </ul>
         {% else %}
-          <a class="btn btn--sm btn--primary" href="{% url 'login' %}">Sign in</a>
+          <p class="sidebar__empty">Sign in to build playlists and see them here.</p>
         {% endif %}
-      </nav>
-    </div>
-  </header>
+      </div>
+    </aside>
 
-  <main class="main" id="main">
-    {% if messages %}
-      <ul class="messages">
-        {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
-      </ul>
-    {% endif %}
-    {% block content %}{% endblock %}
-  </main>
+    <div class="content">
+      <header class="topbar">
+        <div class="topbar__nav" aria-hidden="true">
+          <button class="topbar__round" type="button" id="topbar-back" aria-label="Go back">
+            <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="topbar__round" type="button" id="topbar-forward" aria-label="Go forward">
+            <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
 
-  <footer class="footer">
-    <div class="footer__inner">
-      <span>{{ SITE_NAME }} · {{ SITE_TAGLINE }}</span>
-      <nav class="footer__links">
-        <a href="/api/docs/">API</a>
-        {% if user.is_authenticated and user.is_admin_staff %}<a href="{% url 'dashboard:index' %}">Dashboard</a>{% endif %}
-        <a href="/admin/">Admin</a>
-      </nav>
+        <form class="search" action="{% url 'music:search' %}" method="get" role="search" id="site-search-form">
+          <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 105.3 14l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/></svg>
+          <input type="search" id="site-search" name="q" value="{{ query|default:'' }}" placeholder="Search tracks, artists, albums" aria-label="Search" autocomplete="off"
+                 role="combobox" aria-expanded="false" aria-controls="search-results">
+          <div class="search__results" id="search-results" role="listbox" hidden></div>
+        </form>
+
+        <div class="topbar__actions">
+          <button class="topbar__round" type="button" id="theme-toggle" aria-label="Switch theme" aria-pressed="false" title="Switch between light and dark">
+            <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5h0a1 1 0 011 1v2a1 1 0 11-2 0V3a1 1 0 011-1zm0 16a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM2 11h2a1 1 0 110 2H2a1 1 0 110-2zm16 0h2a1 1 0 110 2h-2a1 1 0 110-2zM4.9 3.5l1.4 1.4a1 1 0 01-1.4 1.4L3.5 4.9A1 1 0 014.9 3.5zm12.8 12.8l1.4 1.4a1 1 0 01-1.4 1.4l-1.4-1.4a1 1 0 011.4-1.4zm0-12.8a1 1 0 011.4 0l-1.4 1.4a1 1 0 01-1.4-1.4l1.4-1.4zM4.9 20.5a1 1 0 01-1.4-1.4l1.4-1.4a1 1 0 011.4 1.4l-1.4 1.4z"/></svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M12.5 2A9 9 0 1022 13.5a1 1 0 00-1.4-1.1A7 7 0 0112.5 2z"/></svg>
+          </button>
+          {% if user.is_authenticated %}
+            <a class="topbar__round" href="{% url 'notifications:list' %}" aria-label="Notifications">
+              <svg viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 002.45-2h-4.9A2.5 2.5 0 0012 22zm7-5v-1l-1.5-1.5V9a5.5 5.5 0 00-4-5.3V3a1.5 1.5 0 10-3 0v.7A5.5 5.5 0 006.5 9v5.5L5 16v1z"/></svg>
+              <span class="badge" data-notif-badge hidden>0</span>
+            </a>
+            {% if user.is_admin_staff %}
+              <a class="btn btn--sm btn--ghost" href="{% url 'dashboard:index' %}">Studio</a>
+            {% endif %}
+            <a class="topbar__user" href="{% url 'accounts:profile' user.id %}" title="View your profile">
+              <span class="avatar">{{ user.initials }}</span>
+              <span class="topbar__user-name">{{ user.display_name }}</span>
+            </a>
+            <form method="post" action="{% url 'logout' %}" class="inline-form">
+              {% csrf_token %}
+              <button class="btn btn--sm btn--ghost" type="submit">Sign out</button>
+            </form>
+          {% else %}
+            <a class="btn btn--sm btn--ghost" href="{% url 'login' %}">Sign in</a>
+            <a class="btn btn--sm btn--primary" href="{% url 'login' %}">Get started</a>
+          {% endif %}
+        </div>
+      </header>
+
+      <main class="main" id="main">
+        {% if messages %}
+          <ul class="messages">
+            {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+        {% block content %}{% endblock %}
+
+        <footer class="footer">
+          <div class="footer__inner">
+            <span>{{ SITE_NAME }} · {{ SITE_TAGLINE }}</span>
+            <nav class="footer__links">
+              <a href="/api/docs/">API</a>
+              {% if user.is_authenticated and user.is_admin_staff %}<a href="{% url 'dashboard:index' %}">Dashboard</a>{% endif %}
+              <a href="/admin/">Admin</a>
+            </nav>
+          </div>
+        </footer>
+      </main>
     </div>
-  </footer>
+  </div>
 
   {% include "music/includes/player.html" %}
+  {% include "music/includes/now_playing.html" %}
   <script src="{% static 'js/player.js' %}"></script>
   {% block scripts %}{% endblock %}
 </body>

@@ -29,6 +29,8 @@ Usage:
             data-track-artist="{{ track.artist.name }}"
             data-track-artist-slug="{{ track.artist.slug }}"
             data-track-url="{% url 'music:track-detail' track.slug %}"
+            data-track-artist-url="{% url 'music:artist-detail' track.artist.slug %}"
+            {% if track.album %}data-track-album-url="{% url 'music:album-detail' track.album.slug %}" data-track-album="{{ track.album.title }}" data-track-album-slug="{{ track.album.slug }}"{% endif %}
             data-track-duration="{{ track.duration_seconds }}"
             {% if track.cover_image %}data-track-cover="{{ track.cover_image.url }}"{% endif %}>
           <td class="col-play">
@@ -68,6 +70,8 @@ Usage:
               <button class="icon-btn icon-btn--ghost" type="button"
                       data-favorite="{{ track.id }}" aria-label="Favourite {{ track.title }}">♥</button>
             {% endif %}
+            <button class="icon-btn icon-btn--ghost" type="button"
+                    data-menu-track="{{ track.id }}" aria-label="More options for {{ track.title }}" aria-haspopup="menu">⋯</button>
           </td>
         </tr>
       {% empty %}

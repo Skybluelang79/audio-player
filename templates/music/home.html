@@ -5,6 +5,44 @@
 {% block head %}<meta name="description" content="Stream tracks, albums and playlists on {{ SITE_NAME }}.">{% endblock %}
 
 {% block content %}
+  <header class="greeting">
+    <h1 class="greeting__title">{{ greeting }}</h1>
+    {% if user.is_authenticated %}
+      <p class="greeting__sub">Pick up where you left off, or find something new.</p>
+    {% else %}
+      <p class="greeting__sub"><a href="{% url 'login' %}">Sign in</a> to save your favourites and build playlists.</p>
+    {% endif %}
+  </header>
+
+  {% if quick_picks %}
+    <ul class="quick-grid">
+      {% for track in quick_picks %}
+        <li class="quick-tile">
+          <a class="quick-tile__art" href="{% url 'music:track-detail' track.slug %}" tabindex="-1" aria-hidden="true">
+            {% if track.cover_image %}
+              <img src="{{ track.cover_image.url }}" alt="" loading="lazy">
+            {% else %}
+              <span class="art art--placeholder" aria-hidden="true">♫</span>
+            {% endif %}
+          </a>
+          <a class="quick-tile__label" href="{% url 'music:track-detail' track.slug %}">{{ track.title }}</a>
+          <button class="quick-tile__play" type="button"
+                  data-track-id="{{ track.id }}"
+                  data-track-title="{{ track.title }}"
+                  data-track-artist="{{ track.artist.name }}"
+                  data-track-artist-slug="{{ track.artist.slug }}"
+                  data-track-url="{% url 'music:track-detail' track.slug %}"
+                  data-track-duration="{{ track.duration_seconds }}"
+                  {% if track.cover_image %}data-track-cover="{{ track.cover_image.url }}"{% endif %}
+                  data-play="{{ track.id }}"
+                  aria-label="Play {{ track.title }} by {{ track.artist.name }}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
   {% for track in hero %}
     <section class="hero">
       <div class="hero__art">
@@ -17,7 +55,7 @@
         {% endif %}
       </div>
       <div class="hero__body">
-        <span class="chip chip--cyan">Featured</span>
+        <span class="chip chip--cyan">Featured today</span>
         <h1 class="hero__title">{{ track.title }}</h1>
         <p class="hero__artist">
           <a href="{% url 'music:artist-detail' track.artist.slug %}">{{ track.artist.name }}</a>
@@ -45,7 +83,14 @@
     </section>
   {% endfor %}
 
+  {% if recently_played %}
+    {% include "music/includes/shelf.html" with title="Recently played" tracks=recently_played show_album=True %}
+  {% endif %}
+
   {% include "music/includes/shelf.html" with title="Trending now" tracks=trending %}
+
+  {% include "music/includes/card_grid.html" with items=albums kind="album" title="New releases" layout="row" %}
+
   {% include "music/includes/shelf.html" with title="Most played" tracks=popular show_cover=False %}
 
   <section class="shelf" id="genres">
@@ -67,13 +112,11 @@
     </ul>
   </section>
 
-  <div class="split">
-    {% include "music/includes/card_grid.html" with items=artists kind="artist" title="Top artists" %}
-    {% include "music/includes/card_grid.html" with items=albums kind="album" title="Latest albums" %}
-  </div>
+  {% include "music/includes/card_grid.html" with items=artists kind="artist" title="Top artists" layout="row" %}
+
+  {% include "music/includes/card_grid.html" with items=playlists kind="playlist" title="Popular playlists" href="/playlists/" layout="row" %}
+  {% include "music/includes/card_grid.html" with items=trending_playlists kind="playlist" title="Trending playlists" layout="row" %}
 
   {% include "music/includes/shelf.html" with title="Recently released" tracks=recent show_album=True %}
-  {% include "music/includes/card_grid.html" with items=playlists kind="playlist" title="Popular playlists" href="/playlists/" %}
-  {% include "music/includes/card_grid.html" with items=trending_playlists kind="playlist" title="Trending playlists" %}
 
 {% endblock %}

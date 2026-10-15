@@ -1,10 +1,20 @@
-{% comment %}Cover-art grid for albums / playlists / artists. {% include "music/includes/card_grid.html" with items=albums kind="album" title="Albums" %} {% endcomment %}
+{% comment %}
+Cover-art grid for albums / playlists / artists.
+
+Usage:
+  {% include "music/includes/card_grid.html" with items=albums kind="album" title="Albums" %}
+  {% include "music/includes/card_grid.html" with items=albums kind="album" title="Albums" layout="row" %}
+
+``layout="row"`` renders a horizontally scrolling strip (home page) instead of a
+wrapping grid; the markup is otherwise identical.
+{% endcomment %}
 {% load humanize %}
 <section class="shelf">
   <div class="shelf__head">
     <h2 class="shelf__title">{{ title }}</h2>
-    {% if href %}<a class="shelf__more" href="{{ href }}">See all →</a>{% endif %}
+    {% if href %}<a class="shelf__more" href="{{ href }}">Show all →</a>{% endif %}
   </div>
+  {% if layout == 'row' %}<div class="row__scroller">{% endif %}
   <ul class="cards">
     {% for item in items %}
       <li class="card">
@@ -42,11 +52,14 @@
         {% if kind == 'album' or kind == 'playlist' %}
           <button class="card__play" type="button" data-play-album="{{ item.slug }}"
                   data-play-kind="{{ kind }}"
-                  aria-label="Play {% firstof item.title item.name %}">▶</button>
+                  aria-label="Play {% firstof item.title item.name %}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          </button>
         {% endif %}
       </li>
     {% empty %}
       <li class="empty">Nothing here yet.</li>
     {% endfor %}
   </ul>
+  {% if layout == 'row' %}</div>{% endif %}
 </section>

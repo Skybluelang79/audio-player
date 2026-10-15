@@ -73,6 +73,7 @@
         {% if lyrics_synced %}<span class="chip chip--cyan">Synced</span>{% endif %}
       </div>
       <div class="panel__body lyrics{% if lyrics_synced %} lyrics--synced{% endif %}"
+           data-lyrics-scope
            data-lyrics-track-id="{{ track.id }}"
            data-lyrics-synced="{% if lyrics_synced %}1{% else %}0{% endif %}">
         {% for line in lyrics_lines %}

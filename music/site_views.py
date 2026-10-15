@@ -16,6 +16,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Count, F, Q
 from django.http import JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.views.generic import DetailView, ListView, TemplateView
 
 from analytics.search import MIN_QUERY_LENGTH, track_query
@@ -76,10 +77,17 @@ class HomeView(SiteViewMixin, TemplateView):
     template_name = "music/home.html"
     nav_active = "home"
 
+    #: Number of compact "quick pick" tiles shown beneath the greeting.
+    QUICK_PICKS = 6
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        user = self.request.user
         context.update(
             {
+                "greeting": self.greeting(),
+                "recently_played": self.recently_played(user),
+                "quick_picks": self.quick_picks(user),
                 "hero": Track.objects.popular()[:1],
                 "trending": Track.objects.trending()[:SHELF_SIZE],
                 "popular": Track.objects.popular()[:SHELF_SIZE],
@@ -97,13 +105,66 @@ class HomeView(SiteViewMixin, TemplateView):
                 "genres": annotate_counts(Genre.objects.all(), "genre").order_by(
                     "-agg_track_count", "name"
                 )[:12],
-                "playlists": visible_playlists(self.request.user, public_only=True).order_by(
+                "playlists": visible_playlists(user, public_only=True).order_by(
                     "-total_plays"
                 )[:8],
                 "trending_playlists": list(trending_playlists(limit=6)),
             }
         )
         return context
+
+    @staticmethod
+    def greeting() -> str:
+        """A time-of-day salutation, evaluated in the configured timezone."""
+        hour = timezone.localtime().hour
+        if hour < 12:
+            return "Good morning"
+        if hour < 18:
+            return "Good afternoon"
+        return "Good evening"
+
+    def recently_played(self, user):
+        """The listener's most recent tracks, newest first. Empty when signed out."""
+        if not user.is_authenticated:
+            return []
+        return [
+            entry.track
+            for entry in user.history.select_related("track__artist", "track__album")[
+                :SHELF_SIZE
+            ]
+        ]
+
+    def quick_picks(self, user):
+        """Up to ``QUICK_PICKS`` tiles: recent listening first, then favourites.
+
+        Anonymous visitors get the popular catalogue so the strip is never bare.
+        """
+        picks: list[Track] = []
+        seen: set = set()
+
+        def add(tracks):
+            for track in tracks:
+                if track.pk in seen or track.status != Track.Status.PUBLISHED:
+                    continue
+                seen.add(track.pk)
+                picks.append(track)
+                if len(picks) >= self.QUICK_PICKS:
+                    return True
+            return False
+
+        if add(self.recently_played(user)):
+            return picks
+        if user.is_authenticated:
+            liked = (
+                Track.objects.published()
+                .with_listeners()
+                .filter(favorited_by__user=user)
+                .order_by("-favorited_by__created_at")
+            )
+            if add(liked[:12]):
+                return picks
+        add(Track.objects.popular()[: self.QUICK_PICKS])
+        return picks
 
 
 class TrackDetailView(SiteViewMixin, DetailView):
@@ -254,6 +315,7 @@ class SearchView(SiteViewMixin, TemplateView):
     """
 
     template_name = "music/search.html"
+    nav_active = "search"
     #: Ceiling per group; the API allows 50 but a page of 250 rows is unusable.
     group_limit = 20
 
@@ -305,6 +367,7 @@ class LibraryView(SiteViewMixin, ListView):
     """Everything the signed-in listener has collected."""
 
     template_name = "music/library.html"
+    nav_active = "library"
     context_object_name = "favorites"
     paginate_by = 30
 
@@ -443,6 +506,16 @@ def collection_manifest(request):
             # the record, not the front.
             .order_by(F("track_number").asc(nulls_last=True), "title")
         )
+    elif kind == "artist":
+        # "Play <artist>" from a search result: their most-played published
+        # tracks, which is what a listener expects from a play button on an
+        # artist rather than the full back catalogue in release order.
+        tracks = (
+            Track.objects.published()
+            .with_listeners()
+            .filter(artist__slug=slug)
+            .order_by("-play_count", "title")[:50]
+        )
     elif kind == "playlist":
         # Reuse the one privacy rule the rest of the site uses, or this endpoint
         # would leak a private playlist's audio URLs to anyone guessing a slug.
@@ -467,5 +540,44 @@ def collection_manifest(request):
             "kind": kind,
             "slug": slug,
             "tracks": [_manifest_entry(request, t) for t in tracks if t.audio_file],
+        }
+    )
+
+
+def track_lyrics(request):
+    """Lyrics for one track, for the now-playing Lyrics tab.
+
+    Kept off the queue manifest because lyrics are large and most tracks in a
+    queue are never opened in the full-screen view; fetching on demand keeps the
+    first-play payload small. Only published tracks are served, mirroring every
+    other public surface.
+    """
+
+    raw = request.GET.get("id", "")
+    converter = Track._meta.pk.to_python
+    try:
+        pk = converter(raw)
+    except (ValidationError, ValueError, TypeError):
+        pk = None
+
+    track = (
+        Track.objects.published().filter(pk=pk).first() if pk is not None else None
+    )
+    if track is None:
+        return JsonResponse({"id": raw, "has_lyrics": False, "synced": False, "lines": []})
+
+    lyrics = track.lyrics or ""
+    synced = is_synced(lyrics)
+    return JsonResponse(
+        {
+            "id": str(track.pk),
+            "title": track.title,
+            "artist": track.artist.name,
+            "has_lyrics": bool(lyrics.strip()),
+            "synced": synced,
+            "lines": [
+                {"time": line["time"], "text": line["text"]}
+                for line in display_lines(lyrics)
+            ],
         }
     )

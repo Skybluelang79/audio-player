@@ -17,6 +17,7 @@ urlpatterns = [
     path("library/", site_views.LibraryView.as_view(), name="library"),
     path("player/manifest/", site_views.track_manifest, name="track-manifest"),
     path("player/collection/", site_views.collection_manifest, name="player-collection"),
+    path("player/lyrics/", site_views.track_lyrics, name="track-lyrics"),
     path("tracks/<slug:slug>/", site_views.TrackDetailView.as_view(), name="track-detail"),
     path("artists/<slug:slug>/", site_views.ArtistDetailView.as_view(), name="artist-detail"),
     path("albums/<slug:slug>/", site_views.AlbumDetailView.as_view(), name="album-detail"),
